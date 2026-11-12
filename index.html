@@ -173,11 +173,11 @@ const KEY='reps100.v1';
 const DEF={onboarded:false,name:'',start:today(),
   targets:{protein:150,kcalMin:1900,kcalMax:2200,water:3.8},
   profile:{sex:'m',age:35,height:180,weight:80,target:80,act:1.375,goal:'cut'},
-  days:{},levels:{arms:1,legs:1,abs:1,back:1},plan:null,
+  days:{},levels:{arms:1,legs:1,abs:1,back:1},gear:{bar:false,kb:false,band:false,vest:false},plan:null,
   weights:[],baseline:{},photos:{},grocery:{},pics:{},gone:{},epoch:0,hideInstall:false,
   goals:{w1:'',w2:'',wisdom:'',stature:'',faith:'',people:'',heard:{},memo:false}};
 let S=load();
-const norm=s=>({...structuredClone(DEF),...s,targets:{...DEF.targets,...s.targets},profile:{...DEF.profile,...s.profile},goals:{...DEF.goals,...s.goals},levels:{...DEF.levels,...s.levels}});
+const norm=s=>({...structuredClone(DEF),...s,targets:{...DEF.targets,...s.targets},profile:{...DEF.profile,...s.profile},goals:{...DEF.goals,...s.goals},levels:{...DEF.levels,...s.levels},gear:{...DEF.gear,...s.gear}});
 function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s)return norm(s)}catch(e){}return structuredClone(DEF)}
 function save(){S.u=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Kunne ikke lagre – lagringen på enheten er full.')}queueSync()}
 
@@ -304,7 +304,7 @@ function vToday(){
       <div class="grat">${d.grat.map((g,i)=>`<input type="text" data-i="grat" data-n="${i}" placeholder="${i+1}. Jeg er takknemlig for …" value="${esc(g)}">`).join('')}</div></details>
       <p class="sub" id="s-grat"></p></div>
   </article>
-  <button class="btn sec" data-a="copy" style="margin-top:6px">Kopier innsjekk til fellesskapet</button>`;
+`;
 }
 function syncToday(){
   if(tab!=='today')return;
@@ -323,33 +323,40 @@ function syncToday(){
 }
 
 /* ---------- workout ---------- */
+/* "Name|gear" – gear is what the movement needs: bar (pull-up/dip station), kb (kettlebell or dumbbell), band, vest. No tag = bodyweight or household items. */
 const EX={
  arms:{n:'Armer/bryst',p:[
-  ['Kneeling Push-Ups','Chair Dips','Backpack Bicep Curls','Incline Push-Ups','Resistance Band Curls'],
-  ['Push-Ups','Close-Grip Push-Ups','Kettlebell Floor Press','Decline Push-Ups','Feet-Elevated Dips','Diamond Push-Ups','Pike Push-Ups','Kettlebell Shoulder Press','Chin-Ups','Tricep Extensions','Bodyweight Tricep Extensions','Bent Over Tricep Extensions'],
-  ['Clap Push-Ups','Archer Push-Ups','Kettlebell Push-Up Rows','Dips (parallel bars)','Deficit Push-Ups','Kettlebell Clean to Press','Handstand Push-Ups','Tension Push-Ups (pause i bunn)','Lateral Raises','Seated Kettlebell Shoulder Press','Upright Row']]},
+  ['Kneeling Push-Ups','Chair Dips','Backpack Bicep Curls','Incline Push-Ups','Resistance Band Curls|band'],
+  ['Push-Ups','Close-Grip Push-Ups','Kettlebell Floor Press|kb','Decline Push-Ups','Feet-Elevated Dips','Diamond Push-Ups','Pike Push-Ups','Kettlebell Shoulder Press|kb','Chin-Ups|bar','Tricep Extensions|kb','Bodyweight Tricep Extensions','Bent Over Tricep Extensions|kb','Banded Push-Ups|band'],
+  ['Clap Push-Ups','Archer Push-Ups','Kettlebell Push-Up Rows|kb','Dips|bar','Deficit Push-Ups','Kettlebell Clean to Press|kb','Handstand Push-Ups','Tension Push-Ups (pause i bunn)','Lateral Raises|kb','Seated Kettlebell Shoulder Press|kb','Upright Row|kb','Weighted Vest Push-Ups|vest','Weighted Vest Dips|bar+vest']]},
  legs:{n:'Bein',p:[
-  ['Bodyweight Squats','Reverse Lunges','Glute Bridges','Step-Ups','Calf Raises'],
-  ['Goblet Squat','Walking Lunges','Single-Leg Glute Bridge','Bulgarian Split Squats','Jump Squats','Jump Lunges','Kettlebell Swings','Around the World Reverse Lunges','Hamstring Curls'],
-  ['Pistol Squat (progresjon)','Kettlebell Swings','Jump Squats','Weighted Step-Ups','Romanian Deadlift','Static Lunges m/ kettlebell pass-through','Weighted Glute Bridges','Kettlebell Overhead Squats','Weighted Bulgarian Split Squats','Front Rack Squats']]},
+  ['Bodyweight Squats','Reverse Lunges','Glute Bridges','Step-Ups','Calf Raises','Banded Glute Bridges|band'],
+  ['Goblet Squat|kb','Walking Lunges','Single-Leg Glute Bridge','Bulgarian Split Squats','Jump Squats','Jump Lunges','Kettlebell Swings|kb','Around the World Reverse Lunges','Hamstring Curls (håndkle på gulvet)','Banded Squats|band','Banded Lateral Walks|band'],
+  ['Pistol Squat (progresjon)','Kettlebell Swings|kb','Jump Squats','Backpack Step-Ups','Romanian Deadlift|kb','Static Lunges m/ kettlebell pass-through|kb','Weighted Glute Bridges|kb','Kettlebell Overhead Squats|kb','Weighted Bulgarian Split Squats|kb','Front Rack Squats|kb','Weighted Vest Squats|vest','Weighted Vest Lunges|vest']]},
  abs:{n:'Mage',p:[
   ['Dead Bugs','Crunches','Leg Raises','Plank 20–30 sek','Penguins'],
-  ['V-Ups','Hanging Knee Raises / Tuck-Ups','Side Plank 30–40 sek','Russian Twists','Kettlebell Marches','Plank Shoulder Taps','Mountain Climbers','Hollow Hold'],
-  ['Hanging Leg Raises','Toes-to-Bar (progresjon)','Plank Walk-Outs','Kettlebell Sit-Up to Press','Kettlebell Overhead Marches','Plank 60+ sek','Weighted Hollow Hold','Kettlebell Halos','Half Kneeling Chop','Ab Wheel Roll-Outs']]},
+  ['V-Ups','Tuck-Ups','Hanging Knee Raises|bar','Side Plank 30–40 sek','Russian Twists','Kettlebell Marches|kb','Plank Shoulder Taps','Mountain Climbers','Hollow Hold','Banded Pallof Press|band'],
+  ['Hanging Leg Raises|bar','Toes-to-Bar (progresjon)|bar','Plank Walk-Outs','Kettlebell Sit-Up to Press|kb','Kettlebell Overhead Marches|kb','Plank 60+ sek','Weighted Hollow Hold|kb','Kettlebell Halos|kb','Half Kneeling Chop|kb','Weighted Vest Plank|vest']]},
  back:{n:'Rygg',p:[
-  ['Supermans','Backpack Bent-Over Rows','Reverse Snow Angels','Doorway Isometric Pulls','Band-Assisted Pull-Ups','Pull-Up Negatives','Banded Bent-Over Rows'],
-  ['Single-Arm Kettlebell Rows','Good Mornings','Back Extensions','Pull-Ups','Chin-Ups','Inverted Rows','Upright Rows'],
-  ['Kettlebell Renegade Rows','Kettlebell Gorilla Rows','Explosive Hip Hinges','Weighted Supermans','Kettlebell Clean and Press','Weighted Pull-Ups','Feet-Elevated Inverted Rows','Archer Pull-Ups','Climber Pull-Ups']]}
+  ['Supermans','Backpack Bent-Over Rows','Reverse Snow Angels','Doorway Isometric Pulls','Band-Assisted Pull-Ups|bar+band','Pull-Up Negatives|bar','Banded Bent-Over Rows|band','Band Pull-Aparts|band'],
+  ['Single-Arm Kettlebell Rows|kb','Good Mornings','Back Extensions','Pull-Ups|bar','Chin-Ups|bar','Inverted Rows|bar','Upright Rows|kb','Banded Face Pulls|band'],
+  ['Kettlebell Renegade Rows|kb','Kettlebell Gorilla Rows|kb','Explosive Hip Hinges|kb','Backpack Supermans','Kettlebell Clean and Press|kb','Weighted Vest Pull-Ups|bar+vest','Feet-Elevated Inverted Rows|bar','Archer Pull-Ups|bar','Climber Pull-Ups|bar']]}
 };
+const GEAR=[['bar','BullBar'],['kb','Kettlebells'],['band','Strikk'],['vest','Vektvest']];
+const canDo=e=>{const g=e.split('|')[1];return !g||g.split('+').every(x=>S.gear[x])};
 const GROUPS=['arms','legs','abs','back'];
 const LVL=['Nybegynner','Middels','Avansert','Pro'];
 const WEEK=[null,'arms','legs',null,'abs','back','arms']; // søn..lør
-const pool=g=>EX[g].p[Math.min(S.levels[g],3)-1];
-const exName=(g,n)=>n+(S.levels[g]===4?' + ekstra vekt':'');
+// movements at the chosen level that fit the gear; if none fit, the nearest level that has some
+function pool(g){const L=Math.min(S.levels[g],3);for(const l of[L,L-1,L-2,L+1,L+2]){if(l<1||l>3)continue;const a=EX[g].p[l-1].filter(canDo).map(e=>e.split('|')[0]);if(a.length)return a}return[]}
+const exName=(g,n)=>n+(S.levels[g]===4&&!/weighted|backpack/i.test(n)?(S.gear.vest?' + vektvest':S.gear.kb?' + ekstra vekt':' + sekk med vekt'):'');
 let T={mins:20,left:1200,end:0,run:false,rounds:0,on:false};
 function makePlan(focus){
   const items=GROUPS.map(g=>({g,n:pick(pool(g))}));
-  const f=focus||'arms';let extra;do{extra=pick(pool(f))}while(extra===items.find(i=>i.g===f).n&&pool(f).length>1);
+  const f=focus||'arms',first=items.find(i=>i.g===f).n;
+  // the extra focus movement must differ from the first; widen to every level when the gear leaves only one choice
+  let fp=pool(f).filter(n=>n!==first);if(!fp.length)fp=EX[f].p.flat().filter(canDo).map(e=>e.split('|')[0]).filter(n=>n!==first);
+  const extra=pick(fp.length?fp:[first]);
   items.push({g:f,n:extra,x:true});
   S.plan={date:today(),focus:f,items};save();
 }
@@ -376,6 +383,8 @@ function vWork(){
     <p class="small muted" style="margin:10px 0 14px">Gå gjennom runden så mange ganger du rekker. 10–45 sek pause mellom øvelsene. Siste runde: helt til det stopper.</p>
     <button class="btn" data-a="tstart">Start økta</button>
   </div>
+  <div class="card"><h3>Mitt utstyr</h3><p class="sub">Øktene bruker bare øvelser du har utstyr til.</p>
+    <div class="chips"><button class="chip ${GEAR.some(([k])=>S.gear[k])?'':'on'}" data-a="gear" data-k="none" aria-pressed="${!GEAR.some(([k])=>S.gear[k])}">Ingen utstyr</button>${GEAR.map(([k,l])=>`<button class="chip ${S.gear[k]?'on':''}" data-a="gear" data-k="${k}" aria-pressed="${!!S.gear[k]}">${l}</button>`).join('')}</div></div>
   <div class="card"><details><summary>Mitt nivå per kroppsdel</summary>
     ${GROUPS.map(g=>`<div class="lvl"><span>${EX[g].n}</span><div class="seg">${[1,2,3,4].map(l=>`<button class="${S.levels[g]===l?'on':''}" data-a="lvl" data-g="${g}" data-v="${l}" title="${LVL[l-1]}">${l}</button>`).join('')}</div></div>`).join('')}
     <ul class="tips"><li><b>1 ${LVL[0]}:</b> du lærer bevegelsen, formen ryker tidlig</li><li><b>2 ${LVL[1]}:</b> god form, utfordrende men mulig</li><li><b>3 ${LVL[2]}:</b> full kontroll, trenger eksplosivt eller vekt</li><li><b>4 ${LVL[3]}:</b> nivå 3 med ekstra vekt</li><li>Klarer du 2 ekstra reps i siste sett to økter på rad? Gå opp et nivå.</li></ul>
@@ -671,11 +680,11 @@ const A={
   mindone(){day(viewDate,true).done.move=true;save();closeSheet();syncToday();toast('Dagen er vunnet 👊')},
   close:closeSheet,
   askyes(){closeSheet();const f=askFn;askFn=null;f&&f()},
-  copy(){copy(`Day ${dayNo(viewDate)} — ${score(viewDate)}/5`,'Innsjekk kopiert')},
   newround(){ask('Starte en ny 100-dagersrunde fra i dag? Historikken beholdes.','Start ny runde',()=>{S.start=today();save();render()})},
   focus(d){makePlan(d.g);render(1)},
   reroll(){makePlan(S.plan.focus);render(1)},
   swap(d){const it=S.plan.items[d.n],used=S.plan.items.map(i=>i.n),c=pool(it.g).filter(n=>!used.includes(n));if(c.length){it.n=pick(c);save();render(1)}},
+  gear(d){if(d.k==='none')GEAR.forEach(([k])=>S.gear[k]=false);else S.gear[d.k]=!S.gear[d.k];makePlan(S.plan.focus);render(1)},
   lvl(d){S.levels[d.g]=+d.v;makePlan(S.plan.focus);render(1)},
   mins(d){T.mins=+d.v;render(1)},
   async tstart(){T.left=T.mins*60;T.end=Date.now()+T.left*1e3;T.run=true;T.on=true;T.rounds=0;render();try{wake=await navigator.wakeLock?.request('screen')}catch(e){}},

@@ -662,7 +662,7 @@ function vProg(){
   </details></div>
   <div class="card"><details><summary>Reglene</summary><ul class="tips">
     <li><b>Ingen omstart.</b> Glipper en dag, fortsetter du bare.</li><li><b>Aldri to på rad.</b> Én dag skjer. To blir et mønster.</li><li><b>Det finnes alltid en måte å vinne dagen på.</b> 1 min planke, 10 push-ups, takknemligheten. Vi dropper ikke dager – vi justerer dem.</li><li><b>Sikt på 5/5, men møt opp uansett.</b> Full seier og minimumsseier teller begge.</li><li><b>Vær ærlig.</b> Dette er for deg.</li><li><b>Du taper bare hvis du slutter.</b></li></ul></details></div>
-  <p class="small muted" style="padding:4px 6px">Uoffisiell app for eget bruk, bygget rundt DailyRepsGuy sin 100-dagers utfordring og guider.</p>`;
+  <p class="small muted" style="padding:4px 6px">Uoffisiell app for eget bruk, bygget rundt DailyRepsGuy sin 100-dagers utfordring og guider. <a class="link" href="privacy.html">Personvern</a></p>`;
 }
 
 /* ---------- onboarding ---------- */
@@ -773,7 +773,7 @@ const A={
     <label class="f" for="lg-e">E-post</label><input type="email" id="lg-e" autocomplete="email" inputmode="email" autocapitalize="off">
     <label class="f" for="lg-p">Passord (minst 8 tegn)</label><input type="password" id="lg-p" autocomplete="current-password">
     <p class="small" id="lg-m" style="color:var(--warn);min-height:20px;margin:10px 0"></p>
-    <button class="btn" data-a="signin">Logg inn</button><button class="btn sec" data-a="signup" style="margin-top:8px">Opprett konto</button><button class="btn sec" data-a="close" style="margin-top:8px">Avbryt</button>`)},
+    <button class="btn" data-a="signin">Logg inn</button><button class="btn sec" data-a="signup" style="margin-top:8px">Opprett konto</button><p class="small muted" style="margin:10px 0 0;text-align:center">Se <a class="link" href="privacy.html">personvern</a> for hva som lagres.</p><button class="btn sec" data-a="close" style="margin-top:8px">Avbryt</button>`)},
   async signin(){const e=$('#lg-e').value.trim(),p=$('#lg-p').value,m=$('#lg-m');if(!e||!p)return m.textContent='Fyll inn e-post og passord.';m.textContent='Logger inn …';
     const{error}=await sb.auth.signInWithPassword({email:e,password:p});if(error)return m.textContent=authErr(error);closeSheet();toast('Innlogget')},
   async signup(){const e=$('#lg-e').value.trim(),p=$('#lg-p').value,m=$('#lg-m');if(!e||p.length<8)return m.textContent='Fyll inn e-post og et passord på minst 8 tegn.';m.textContent='Oppretter konto …';

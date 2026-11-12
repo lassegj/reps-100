@@ -76,7 +76,7 @@ h3{font-size:16px;font-weight:700}
 .btn.sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
 .btn.warn{background:none;color:var(--warn);border:1px solid var(--warn)}
 .row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
-input[type=text],input[type=number],input[type=date],select,textarea{width:100%;padding:12px 13px;border-radius:12px;border:1px solid var(--line);background:var(--bg);min-height:46px;outline:none;display:block;min-width:0;max-width:100%;margin:0;font-size:16px}
+input[type=text],input[type=number],input[type=date],input[type=email],input[type=password],select,textarea{width:100%;padding:12px 13px;border-radius:12px;border:1px solid var(--line);background:var(--bg);min-height:46px;outline:none;display:block;min-width:0;max-width:100%;margin:0;font-size:16px}
 /* iOS draws date fields at their own intrinsic width and centres the value; make them behave like the other fields */
 input[type=date]{-webkit-appearance:none;appearance:none;height:46px;line-height:20px;text-align:left}
 input[type=date]::-webkit-date-and-time-value{text-align:left;margin:0}
@@ -174,15 +174,79 @@ const DEF={onboarded:false,name:'',start:today(),
   targets:{protein:150,kcalMin:1900,kcalMax:2200,water:3.8},
   profile:{sex:'m',age:35,height:180,weight:80,target:80,act:1.375,goal:'cut'},
   days:{},levels:{arms:1,legs:1,abs:1,back:1},plan:null,
-  weights:[],baseline:{},photos:{},grocery:{},pics:{},hideInstall:false,
+  weights:[],baseline:{},photos:{},grocery:{},pics:{},gone:{},epoch:0,hideInstall:false,
   goals:{w1:'',w2:'',wisdom:'',stature:'',faith:'',people:'',heard:{},memo:false}};
 let S=load();
-function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s)return{...structuredClone(DEF),...s,targets:{...DEF.targets,...s.targets},profile:{...DEF.profile,...s.profile},goals:{...DEF.goals,...s.goals},levels:{...DEF.levels,...s.levels}}}catch(e){}return structuredClone(DEF)}
-function save(){S.u=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Kunne ikke lagre – lagringen på enheten er full.')}}
-const syncText=()=>'Alt lagres på denne enheten. Ta en sikkerhetskopi av og til.';
+const norm=s=>({...structuredClone(DEF),...s,targets:{...DEF.targets,...s.targets},profile:{...DEF.profile,...s.profile},goals:{...DEF.goals,...s.goals},levels:{...DEF.levels,...s.levels}});
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s)return norm(s)}catch(e){}return structuredClone(DEF)}
+function save(){S.u=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Kunne ikke lagre – lagringen på enheten er full.')}queueSync()}
+
+/* ---------- account + sync (Supabase) ----------
+   State is one row per user (merged per day, newest wins); photos and the voice memo are files in a private bucket.
+   The app keeps working from the device copy when signed out or offline. */
+const SB_URL='',SB_KEY='';
+let sb=null,sess=null,syncAt=0,syncBusy=false,syncAgain=false,syncMsg='',syncT=0;
+const typing=()=>!!document.activeElement?.matches('input,textarea,select');
+const MK='reps100.sync';
+const marks=()=>{try{return{up:{},lv:{},...JSON.parse(localStorage.getItem(MK))}}catch(e){return{up:{},lv:{}}}};
+const setMarks=m=>{try{localStorage.setItem(MK,JSON.stringify(m))}catch(e){}};
+const holdBlob=(k,v)=>{const m=marks();m.lv[k]=v;setMarks(m)};
+const canon=v=>Array.isArray(v)?'['+v.map(canon).join(',')+']':v&&typeof v==='object'?'{'+Object.keys(v).sort().map(k=>JSON.stringify(k)+':'+canon(v[k])).join(',')+'}':JSON.stringify(v??null);
+function mergeState(a,b){
+  if((a.epoch||0)!==(b.epoch||0))return structuredClone((a.epoch||0)>(b.epoch||0)?a:b);
+  const top=!a.onboarded&&b.onboarded?b:b.onboarded&&!a.onboarded?b:(a.u||0)>=(b.u||0)?a:b,o=structuredClone(top);
+  o.days={};
+  for(const k of new Set([...Object.keys(a.days||{}),...Object.keys(b.days||{})])){const x=a.days?.[k],y=b.days?.[k];o.days[k]=structuredClone(!y?x:!x?y:(x.u||0)>=(y.u||0)?x:y)}
+  o.gone={};for(const src of[a.gone||{},b.gone||{}])for(const k in src)o.gone[k]=Math.max(o.gone[k]||0,src[k]);
+  const pics={};for(const src of[a.pics||{},b.pics||{}])for(const k in src)pics[k]=Math.max(pics[k]||0,src[k]);
+  o.pics={};for(const k in pics)if(pics[k]>(o.gone[k]||0))o.pics[k]=pics[k];
+  o.u=Math.max(a.u||0,b.u||0);return o;
+}
+const spath=k=>sess.user.id+'/'+k.replace(/[^A-Za-z0-9._-]/g,'_');
+const syncText=()=>!sb?'Synk mellom enheter er ikke satt opp. Alt lagres på denne enheten.':!sess?'Ikke innlogget. Alt lagres bare på denne enheten.':syncBusy?'Synker …':syncMsg?syncMsg:syncAt?`Sist synket kl. ${new Date(syncAt).toLocaleTimeString('nb-NO',{hour:'2-digit',minute:'2-digit'})}.`:'Ikke synket ennå.';
+function paintSync(){const e=$('#syncst');if(e)e.textContent=syncText()}
+function queueSync(){if(!sb||!sess)return;clearTimeout(syncT);syncT=setTimeout(()=>syncNow(),2500)}
+async function syncBlobs(){
+  const m=marks(),want={...S.pics};if(S.goals.memo)want.memo=S.goals.memoU||1;let changed=false;
+  const bucket=sb.storage.from('reps');
+  for(const k in want){
+    const local=await idbGet(k).catch(()=>null),mine=local&&(m.lv[k]===want[k]||(m.lv[k]==null&&want[k]<=1));
+    if(mine){if(m.up[k]!==want[k]){const{error}=await bucket.upload(spath(k),local,{upsert:true,contentType:local.type||'application/octet-stream'});if(!error){m.up[k]=want[k];setMarks(m)}}}
+    else{const{data,error}=await bucket.download(spath(k));if(data&&!error){await idbSet(k,data);m.lv[k]=m.up[k]=want[k];setMarks(m);if(picUrl[k]){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}changed=true}}
+  }
+  for(const k in S.gone||{})if(!S.pics[k]&&m.up['x:'+k]!==S.gone[k]){
+    await idbDel(k).catch(()=>{});await bucket.remove([spath(k)]);
+    m.up['x:'+k]=S.gone[k];delete m.up[k];delete m.lv[k];setMarks(m);if(picUrl[k]){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}changed=true}
+  if(changed&&!typing())render(1);
+}
+async function syncNow(manual){
+  if(!sb||!sess)return;if(syncBusy){syncAgain=true;return}
+  syncBusy=true;syncMsg='';paintSync();
+  try{
+    const{data,error}=await sb.from('reps_state').select('data').eq('user_id',sess.user.id).maybeSingle();if(error)throw error;
+    const remote=data?.data||null;
+    if(remote){const m=norm(mergeState(S,remote));
+      if(canon(m)!==canon(S)){if(typing()){syncAgain=true}else{S=m;try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}render(1)}}}
+    if(!remote||canon(S)!==canon(remote)){const{error:e2}=await sb.from('reps_state').upsert({user_id:sess.user.id,data:S,updated_at:new Date().toISOString()});if(e2)throw e2}
+    await syncBlobs();syncAt=Date.now();
+  }catch(e){syncMsg=navigator.onLine===false?'Uten nett. Synker når du er på nett igjen.':'Synk feilet: '+(e?.message||'ukjent feil')}
+  syncBusy=false;paintSync();if(manual)toast(syncMsg||'Synket');
+  if(syncAgain){syncAgain=false;queueSync()}
+}
+function sbStart(){
+  if(!SB_URL||!SB_KEY)return;
+  const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
+  sc.onload=()=>{try{sb=window.supabase.createClient(SB_URL,SB_KEY);
+    sb.auth.onAuthStateChange((ev,s)=>{const was=sess?.user?.id;sess=s;
+      if(s&&s.user.id!==was)setTimeout(()=>{render(1);syncNow()},0);
+      if(!s&&was)setTimeout(()=>render(1),0)});
+    render(1)}catch(e){sb=null}};
+  document.head.append(sc);
+}
+const authErr=e=>{const t=String(e?.message||'');return /invalid login/i.test(t)?'Feil e-post eller passord.':/not confirmed/i.test(t)?'Bekreft e-posten din først. Se innboksen.':/already registered|already exists/i.test(t)?'Det finnes allerede en konto med den e-posten. Logg inn i stedet.':/signups? (not allowed|disabled)/i.test(t)?'Det er stengt for nye kontoer.':/fetch|network/i.test(t)?'Fikk ikke kontakt. Sjekk nettet og prøv igjen.':t||'Noe gikk galt.'};
 const HABITS=[['move','Bevegelse'],['protein','Protein'],['kcal','Kalorier'],['water','Vann'],['grat','Takknemlighet']];
 const emptyDay=()=>({done:{},moves:{},protein:0,kcal:0,water:0,grat:['','','','','']});
-function day(k,create){if(!S.days[k]){if(!create)return emptyDay();S.days[k]=emptyDay()}return S.days[k]}
+function day(k,create){if(!S.days[k]){if(!create)return emptyDay();S.days[k]=emptyDay()}if(create)S.days[k].u=Date.now();return S.days[k]}
 const score=k=>{const d=S.days[k];return d?HABITS.filter(h=>d.done[h[0]]).length:0};
 const dayNo=k=>diff(k,S.start)+1;
 function streak(){let k=today(),n=0;if(!score(k))k=addDays(k,-1);while(score(k)&&diff(k,S.start)>=0){n++;k=addDays(k,-1)}return n}
@@ -200,6 +264,7 @@ function vToday(){
   else if(isT&&n>1&&!score(y))banner=`<div class="banner">I går glapp. Aldri to på rad – gjør i hvert fall minimum i dag.</div>`;
   if(isT&&[25,50,75,100].includes(n))banner+=`<div class="banner ok">Milepæl: dag ${n}! Feir den. 🎉</div>`;
   if(isT&&!S.hideInstall&&!(navigator.standalone||matchMedia('(display-mode: standalone)').matches))banner+=`<div class="banner ok">Legg appen på Hjem-skjermen: trykk Del og velg «Legg til på Hjem-skjerm». Gjør det før du begynner å logge, for appen på Hjem-skjermen har sitt eget lager. <button class="link" data-a="hideinst">Skjul</button></div>`;
+  if(isT&&sb&&!sess)banner+=`<div class="banner ok">Logg inn for å ha samme data på mobil og PC. <button class="link" data-a="login">Logg inn</button></div>`;
   if(n>100&&isT)banner+=`<div class="banner ok">Du har passert 100 dager. Du stopper ikke nå – <button class="link" data-a="newround">start neste 100</button>.</div>`;
   const c=2*Math.PI*46;
   return `
@@ -490,7 +555,7 @@ async function recToggle(){
     rec=new MediaRecorder(st);
     rec.ondataavailable=e=>chunks.push(e.data);
     rec.onstop=async()=>{st.getTracks().forEach(t=>t.stop());const b=new Blob(chunks,{type:rec.mimeType});rec=null;
-      try{await idbSet('memo',b);S.goals.memo=true;save();toast('Opptak lagret')}catch(e){toast('Kunne ikke lagre opptaket')}render(1)};
+      try{await idbSet('memo',b);S.goals.memo=true;S.goals.memoU=Date.now();holdBlob('memo',S.goals.memoU);save();toast('Opptak lagret')}catch(e){toast('Kunne ikke lagre opptaket')}render(1)};
     rec.start();render(1);
   }catch(e){rec=null;toast('Fikk ikke tilgang til mikrofonen')}
 }
@@ -509,7 +574,7 @@ function loadPics(root=document){root.querySelectorAll('img[data-pic]').forEach(
 async function shrink(file){try{const bmp=await createImageBitmap(file,{imageOrientation:'from-image'}),sc=Math.min(1,1600/Math.max(bmp.width,bmp.height)),c=document.createElement('canvas');
   c.width=Math.round(bmp.width*sc);c.height=Math.round(bmp.height*sc);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
   return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',.85))}catch(e){return file}}
-async function picAdd(k,file){try{const b=await shrink(file);await idbSet(k,b);if(picUrl[k]){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}S.pics[k]=1;save();closeSheet();render(1);toast('Bilde lagret')}catch(e){toast('Kunne ikke lagre bildet')}}
+async function picAdd(k,file){try{const b=await shrink(file);await idbSet(k,b);if(picUrl[k]){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}S.pics[k]=Date.now();holdBlob(k,S.pics[k]);save();closeSheet();render(1);toast('Bilde lagret')}catch(e){toast('Kunne ikke lagre bildet')}}
 
 /* ---------- progress ---------- */
 function vProg(){
@@ -544,7 +609,10 @@ function vProg(){
     <label class="f">Startdato (dag 1)</label><input type="date" data-i="start" value="${S.start}">
     <div class="row" style="margin-top:14px"><button class="btn sec" data-a="export">Sikkerhetskopi</button><label class="btn sec" for="impfile" style="cursor:pointer">Gjenopprett</label><input type="file" id="impfile" accept="application/json,.json" hidden></div>
     <button class="btn warn" data-a="reset" style="margin-top:10px">Slett alt og start på nytt</button>
-    <p class="small muted" id="syncst" style="margin-top:10px">${syncText()}</p>
+    <label class="f" style="margin-top:16px">Konto og synk</label>
+    ${sess?`<p class="small">Innlogget som ${esc(sess.user.email||'')}</p>`:''}
+    <p class="small muted" id="syncst">${esc(syncText())}</p>
+    ${sb?(sess?'<div class="row" style="margin-top:8px"><button class="btn sec" data-a="syncnow">Synk nå</button><button class="btn sec" data-a="signout">Logg ut</button></div>':'<button class="btn" data-a="login" style="margin-top:8px">Logg inn</button>'):''}
   </details></div>
   <div class="card"><details><summary>Reglene</summary><ul class="tips">
     <li><b>Ingen omstart.</b> Glipper en dag, fortsetter du bare.</li><li><b>Aldri to på rad.</b> Én dag skjer. To blir et mønster.</li><li><b>Det finnes alltid en måte å vinne dagen på.</b> 1 min planke, 10 push-ups, takknemligheten. Vi dropper ikke dager – vi justerer dem.</li><li><b>Sikt på 5/5, men møt opp uansett.</b> Full seier og minimumsseier teller begge.</li><li><b>Vær ærlig.</b> Dette er for deg.</li><li><b>Du taper bare hvis du slutter.</b></li></ul></details></div>
@@ -569,7 +637,8 @@ function vOnboard(){
     <p class="small muted" style="margin-top:8px">Kan endres når som helst.</p>
   </div>
   <div class="card"><p style="font-weight:600">Jeg møter opp de neste 100 dagene. Jeg jakter ikke perfeksjon, men stabilitet. Glipper jeg én dag, glipper jeg ikke to. Jeg slutter ikke.</p></div>
-  <button class="btn" data-a="commit">Jeg er med – start</button></div>`;
+  <button class="btn" data-a="commit">Jeg er med – start</button>
+  ${sb&&!sess?'<button class="link" data-a="login" style="display:block;margin:16px auto 0">Har du konto fra før? Logg inn</button>':''}</div>`;
 }
 
 /* ---------- shell ---------- */
@@ -635,11 +704,26 @@ const A={
       const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.append(a);a.click();a.remove();toast('Sikkerhetskopi lagret')
     }catch(e){toast('Kunne ikke lage sikkerhetskopi')}},
   picview(d){sheet(`<img id="bigpic" alt="" style="width:100%;border-radius:12px;display:block"><div class="row" style="margin-top:12px"><label class="btn sec" style="cursor:pointer">Bytt bilde<input type="file" accept="image/*" data-i="picadd" data-k="${esc(d.k)}" hidden></label><button class="btn warn" data-a="picdel" data-k="${esc(d.k)}">Slett</button></div><button class="btn sec" data-a="close" style="margin-top:8px">Lukk</button>`);picSrc(d.k).then(u=>{const e=$('#bigpic');if(e)e.src=u})},
-  async picdel(d){try{await idbDel(d.k)}catch(e){}if(picUrl[d.k]){URL.revokeObjectURL(picUrl[d.k]);delete picUrl[d.k]}delete S.pics[d.k];save();closeSheet();render(1);toast('Bilde slettet')},
+  async picdel(d){try{await idbDel(d.k)}catch(e){}if(picUrl[d.k]){URL.revokeObjectURL(picUrl[d.k]);delete picUrl[d.k]}delete S.pics[d.k];S.gone[d.k]=Date.now();save();closeSheet();render(1);toast('Bilde slettet')},
   cmp(){const ds=PDAYS.filter(d=>POSES.some(([p])=>S.pics[pkey(d,p)])),a=ds[0],b=ds[ds.length-1];
     sheet(`<h2>Dag ${a} og dag ${b}</h2>${POSES.map(([p,l])=>`<label class="f">${l}</label><div class="cmp">${[a,b].map(d=>S.pics[pkey(d,p)]?`<div class="pic has"><img data-pic="${pkey(d,p)}" alt="Dag ${d}, ${l}"><span>Dag ${d}</span></div>`:`<div class="pic"><span>Dag ${d} mangler</span></div>`).join('')}</div>`).join('')}<button class="btn sec" data-a="close" style="margin-top:14px">Lukk</button>`);loadPics($('#sheet'))},
   hideinst(){S.hideInstall=true;save();render(1)},
-  reset(){ask('Slette alle data? Dette kan ikke angres.','Slett alt',()=>{idbClear().catch(()=>{});for(const k in picUrl){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}S=structuredClone(DEF);S.start=today();save();tab='today';viewDate=today();render()})}
+  reset(){ask(sess?'Slette alle data, også i skyen? Dette kan ikke angres.':'Slette alle data? Dette kan ikke angres.','Slett alt',async()=>{
+    idbClear().catch(()=>{});for(const k in picUrl){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}setMarks({up:{},lv:{}});
+    S=structuredClone(DEF);S.start=today();S.epoch=Date.now();tab='today';viewDate=today();save();render();
+    if(sb&&sess){try{const b=sb.storage.from('reps'),{data}=await b.list(sess.user.id,{limit:1000});if(data?.length)await b.remove(data.map(f=>sess.user.id+'/'+f.name))}catch(e){}}})},
+  login(){sheet(`<h2>Logg inn</h2><p class="sub">Samme konto på mobil og PC gir samme data og bilder.</p>
+    <label class="f" for="lg-e">E-post</label><input type="email" id="lg-e" autocomplete="email" inputmode="email" autocapitalize="off">
+    <label class="f" for="lg-p">Passord (minst 8 tegn)</label><input type="password" id="lg-p" autocomplete="current-password">
+    <p class="small" id="lg-m" style="color:var(--warn);min-height:20px;margin:10px 0"></p>
+    <button class="btn" data-a="signin">Logg inn</button><button class="btn sec" data-a="signup" style="margin-top:8px">Opprett konto</button><button class="btn sec" data-a="close" style="margin-top:8px">Avbryt</button>`)},
+  async signin(){const e=$('#lg-e').value.trim(),p=$('#lg-p').value,m=$('#lg-m');if(!e||!p)return m.textContent='Fyll inn e-post og passord.';m.textContent='Logger inn …';
+    const{error}=await sb.auth.signInWithPassword({email:e,password:p});if(error)return m.textContent=authErr(error);closeSheet();toast('Innlogget')},
+  async signup(){const e=$('#lg-e').value.trim(),p=$('#lg-p').value,m=$('#lg-m');if(!e||p.length<8)return m.textContent='Fyll inn e-post og et passord på minst 8 tegn.';m.textContent='Oppretter konto …';
+    const{data,error}=await sb.auth.signUp({email:e,password:p});if(error)return m.textContent=authErr(error);
+    if(data?.session){closeSheet();toast('Konto opprettet')}else m.textContent='Sjekk e-posten og bekreft kontoen. Logg så inn her.'},
+  async signout(){try{await sb.auth.signOut()}catch(e){}toast('Logget ut. Dataene ligger fortsatt på denne enheten.')},
+  syncnow(){syncNow(true)},
 };
 document.addEventListener('click',e=>{
   if(e.target.id==='sheet')return closeSheet();
@@ -663,7 +747,7 @@ async function restoreFile(file){
   try{const d=JSON.parse(await file.text()),n=d.state||d;if(!n||!n.days||!n.targets)throw 0;
     await idbClear();for(const k in picUrl){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}
     for(const[k,u]of Object.entries(d.blobs||{}))await idbSet(k,await(await fetch(u)).blob());
-    localStorage.setItem(KEY,JSON.stringify(n));S=load();render();toast('Gjenopprettet')
+    localStorage.setItem(KEY,JSON.stringify(n));S=load();S.epoch=Date.now();const mk={up:{},lv:{}};for(const k in S.pics)mk.lv[k]=S.pics[k];if(S.goals.memo)mk.lv.memo=S.goals.memoU||1;setMarks(mk);save();render();toast('Gjenopprettet')
   }catch(e){toast('Kunne ikke lese sikkerhetskopien')}
 }
 function onInput(e){
@@ -672,10 +756,12 @@ function onInput(e){
   if(el.dataset.g){S.goals[el.dataset.g]=el.value;save();syncDecl()}
   if(el.dataset.p){S.profile[el.dataset.p]=['sex','goal'].includes(el.dataset.p)?el.value:num(el.value);save();syncCalc()}
   if(el.id==='impfile'&&e.type==='change'&&el.files[0])restoreFile(el.files[0]);
-  if(el.id==='memofile'&&e.type==='change'&&el.files[0]){idbSet('memo',el.files[0]).then(()=>{S.goals.memo=true;save();render(1);toast('Opptak lagret')}).catch(()=>toast('Kunne ikke lagre opptaket'))}
+  if(el.id==='memofile'&&e.type==='change'&&el.files[0]){idbSet('memo',el.files[0]).then(()=>{S.goals.memo=true;S.goals.memoU=Date.now();holdBlob('memo',S.goals.memoU);save();render(1);toast('Opptak lagret')}).catch(()=>toast('Kunne ikke lagre opptaket'))}
 }
 document.addEventListener('input',onInput);document.addEventListener('change',onInput);
-render();
+render();sbStart();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncNow()});
+addEventListener('online',()=>syncNow());
 navigator.storage?.persist?.().catch(()=>{});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script>

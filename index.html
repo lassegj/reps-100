@@ -185,6 +185,7 @@ function save(){S.u=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}c
    State is one row per user (merged per day, newest wins); photos and the voice memo are files in a private bucket.
    The app keeps working from the device copy when signed out or offline. */
 const SB_URL='https://jvctmdyiytzbxycrlbjn.supabase.co',SB_KEY='sb_publishable_NsFJNte1jJdUhXE62HPlpA_fLXe5jum'; // publishable key: safe to ship, access is limited by row level security
+let hasGoogle=false;
 let sb=null,sess=null,syncAt=0,syncBusy=false,syncAgain=false,syncMsg='',syncT=0;
 const typing=()=>!!document.activeElement?.matches('input,textarea,select');
 const MK='reps100.sync';
@@ -240,7 +241,8 @@ function sbStart(){
     sb.auth.onAuthStateChange((ev,s)=>{const was=sess?.user?.id;sess=s;
       if(s&&s.user.id!==was)setTimeout(()=>{render(1);syncNow()},0);
       if(!s&&was)setTimeout(()=>render(1),0)});
-    render(1)}catch(e){sb=null}};
+    render(1);
+    fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}).then(r=>r.json()).then(d=>{hasGoogle=!!d?.external?.google}).catch(()=>{})}catch(e){sb=null}};
   document.head.append(sc);
 }
 const authErr=e=>{const t=String(e?.message||'');return /invalid login/i.test(t)?'Feil e-post eller passord.':/not confirmed/i.test(t)?'Bekreft e-posten din først. Se innboksen.':/already registered|already exists/i.test(t)?'Det finnes allerede en konto med den e-posten. Logg inn i stedet.':/signups? (not allowed|disabled)/i.test(t)?'Det er stengt for nye kontoer.':/fetch|network/i.test(t)?'Fikk ikke kontakt. Sjekk nettet og prøv igjen.':t||'Noe gikk galt.'};
@@ -344,6 +346,8 @@ const EX={
 };
 const GEAR=[['bar','BullBar'],['kb','Kettlebells'],['band','Strikk'],['vest','Vektvest']];
 const canDo=e=>{const g=e.split('|')[1];return !g||g.split('+').every(x=>S.gear[x])};
+const EXTAG={};for(const g in EX)for(const l of EX[g].p)for(const e of l)EXTAG[e.split('|')[0]]=e;
+const fits=n=>n in EXTAG&&canDo(EXTAG[n]);
 const GROUPS=['arms','legs','abs','back'];
 const LVL=['Nybegynner','Middels','Avansert','Pro'];
 const WEEK=[null,'arms','legs',null,'abs','back','arms']; // søn..lør
@@ -363,6 +367,7 @@ function makePlan(focus){
 function vWork(){
   const wd=new Date().getDay(),rest=!WEEK[wd];
   if(!S.plan||S.plan.date!==today())makePlan(WEEK[wd]||'legs');
+  else if(!T.on&&S.plan.items.some(i=>!fits(i.n)))makePlan(S.plan.focus);
   const p=S.plan;
   if(T.on)return vTimer();
   return `
@@ -722,6 +727,7 @@ const A={
     S=structuredClone(DEF);S.start=today();S.epoch=Date.now();tab='today';viewDate=today();save();render();
     if(sb&&sess){try{const b=sb.storage.from('reps'),{data}=await b.list(sess.user.id,{limit:1000});if(data?.length)await b.remove(data.map(f=>sess.user.id+'/'+f.name))}catch(e){}}})},
   login(){sheet(`<h2>Logg inn</h2><p class="sub">Samme konto på mobil og PC gir samme data og bilder.</p>
+    ${hasGoogle?'<button class="btn" data-a="google" style="margin-top:12px">Fortsett med Google</button><p class="small muted" style="text-align:center;margin:12px 0 0">eller med e-post</p>':''}
     <label class="f" for="lg-e">E-post</label><input type="email" id="lg-e" autocomplete="email" inputmode="email" autocapitalize="off">
     <label class="f" for="lg-p">Passord (minst 8 tegn)</label><input type="password" id="lg-p" autocomplete="current-password">
     <p class="small" id="lg-m" style="color:var(--warn);min-height:20px;margin:10px 0"></p>
@@ -731,6 +737,7 @@ const A={
   async signup(){const e=$('#lg-e').value.trim(),p=$('#lg-p').value,m=$('#lg-m');if(!e||p.length<8)return m.textContent='Fyll inn e-post og et passord på minst 8 tegn.';m.textContent='Oppretter konto …';
     const{data,error}=await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:location.origin+location.pathname}});if(error)return m.textContent=authErr(error);
     if(data?.session){closeSheet();toast('Konto opprettet')}else m.textContent='Sjekk e-posten og bekreft kontoen. Logg så inn her.'},
+  async google(){const m=$('#lg-m');m.textContent='Åpner Google …';const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)m.textContent=authErr(error)},
   async signout(){try{await sb.auth.signOut()}catch(e){}toast('Logget ut. Dataene ligger fortsatt på denne enheten.')},
   syncnow(){syncNow(true)},
 };

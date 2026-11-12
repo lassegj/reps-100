@@ -102,6 +102,8 @@ details[open] summary::after{content:"－"}
 .ex select{flex:1;min-width:0;min-height:40px;padding:8px 34px 8px 10px;font-weight:650}
 .ex .g{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ex a{color:var(--muted);font-size:13px;text-decoration:none;padding:6px}
+.ex .icon{width:34px;height:34px;font-size:14px}
+.ex{gap:8px}
 .icon{width:38px;height:38px;border-radius:50%;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;flex:none;font-size:16px}
 .seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px}
 .seg button{flex:1;padding:8px 0;border-radius:9px;font-weight:700;font-size:14px;color:var(--muted)}
@@ -396,14 +398,15 @@ function vWork(){
     <div style="margin-top:8px">${p.items.map((it,i)=>`
       <div class="ex"><span class="tag">${it.x?'Fokus':EX[it.g].n}</span><span class="nm">${esc(exName(it.g,it.n))}</span>
       <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(it.n+' exercise how to')}" target="_blank" rel="noopener" title="Se hvordan">Vis</a>
-      <button class="icon" data-a="swap" data-n="${i}" aria-label="Bytt øvelse">↻</button></div>`).join('')}</div>
-    <button class="chip" data-a="reroll" style="margin-top:10px">↻ Ny økt</button>
+      <button class="icon" data-a="swap" data-n="${i}" aria-label="Bytt øvelse">↻</button><button class="icon" data-a="exdel" data-n="${i}" aria-label="Fjern øvelse">✕</button></div>`).join('')||'<p class="sub" style="padding:10px 0">Ingen øvelser. Legg til minst én.</p>'}</div>
+    ${p.items.length<3||p.items.length>5?`<div class="banner" style="margin:10px 0 0" role="status">⚠ ${p.items.length<3?'Få øvelser':'Mange øvelser'}: du har ${p.items.length}. Anbefalt er 3–5 per økt.</div>`:''}
+    <div class="chips" style="margin-top:10px"><button class="chip" data-a="exadd">＋ Legg til øvelse</button><button class="chip" data-a="reroll">↻ Ny økt</button></div>
   </div>
   <div class="card">
     <label class="f" style="margin-top:0">Tid</label>
     <div class="seg">${[10,15,20].map(m=>`<button class="${T.mins===m?'on':''}" data-a="mins" data-v="${m}">${m} min</button>`).join('')}</div>
     <p class="small muted" style="margin:10px 0 14px">Gå gjennom runden så mange ganger du rekker. 10–45 sek pause mellom øvelsene. Siste runde: helt til det stopper.</p>
-    <button class="btn" data-a="tstart">Start økta</button>
+    <button class="btn" data-a="tstart" ${p.items.length?'':'disabled style="opacity:.5"'}>Start økta</button>
   </div>
   <div class="card"><h3>Mitt utstyr</h3><p class="sub">Øktene bruker bare øvelser du har utstyr til.</p>
     <div class="chips"><button class="chip ${GEAR.some(([k])=>S.gear[k])?'':'on'}" data-a="gear" data-k="none" aria-pressed="${!GEAR.some(([k])=>S.gear[k])}">Ingen utstyr</button>${GEAR.map(([k,l])=>`<button class="chip ${S.gear[k]?'on':''}" data-a="gear" data-k="${k}" aria-pressed="${!!S.gear[k]}">${l}</button>`).join('')}</div></div>
@@ -708,11 +711,15 @@ const A={
   newround(){ask('Starte en ny 100-dagersrunde fra i dag? Historikken beholdes.','Start ny runde',()=>{S.start=today();save();render()})},
   focus(d){makePlan(d.g);render(1)},
   reroll(){makePlan(S.plan.focus);render(1)},
+  exdel(d){S.plan.items.splice(+d.n,1);save();render(1)},
+  exadd(){const used=S.plan.items.map(i=>i.n);
+    sheet(`<h2>Legg til øvelse</h2><p class="sub">Øvelser på ditt nivå som passer utstyret ditt.</p>${GROUPS.map(g=>{const c=pool(g).filter(n=>!used.includes(n));return `<label class="f">${EX[g].n}</label><div class="chips" style="margin-top:0">${c.map(n=>`<button class="chip" data-a="exput" data-g="${g}" data-x="${esc(n)}">${esc(n)}</button>`).join('')||'<span class="small muted">Alle er allerede med.</span>'}</div>`}).join('')}<button class="btn sec" data-a="close" style="margin-top:16px">Lukk</button>`)},
+  exput(d){S.plan.items.push({g:d.g,n:d.x});save();closeSheet();render(1)},
   swap(d){const it=S.plan.items[d.n],used=S.plan.items.map(i=>i.n),c=pool(it.g).filter(n=>!used.includes(n));if(c.length){it.n=pick(c);save();render(1)}},
   gear(d){if(d.k==='none')GEAR.forEach(([k])=>S.gear[k]=false);else S.gear[d.k]=!S.gear[d.k];makePlan(S.plan.focus);render(1)},
   lvl(d){S.levels[d.g]=+d.v;makePlan(S.plan.focus);render(1)},
   mins(d){T.mins=+d.v;render(1)},
-  async tstart(){T.left=T.mins*60;T.end=Date.now()+T.left*1e3;T.run=true;T.on=true;T.rounds=0;render();try{wake=await navigator.wakeLock?.request('screen')}catch(e){}},
+  async tstart(){if(!S.plan.items.length)return;T.left=T.mins*60;T.end=Date.now()+T.left*1e3;T.run=true;T.on=true;T.rounds=0;render();try{wake=await navigator.wakeLock?.request('screen')}catch(e){}},
   tpause(){if(T.run){T.left=Math.max(0,(T.end-Date.now())/1e3);T.run=false}else{T.end=Date.now()+T.left*1e3;T.run=true}render(1)},
   round(){T.rounds++;$('#rounds').textContent=T.rounds},
   tdone(){finish(false)},

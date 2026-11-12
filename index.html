@@ -688,14 +688,14 @@ function vOnboard(){
 }
 
 /* ---------- shell ---------- */
-const TABS=[['today','I dag','<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>'],['work','Trening','<path d="M4 9v6M7 6v12M17 6v12M20 9v6M7 12h10"/>'],['food','Mat','<path d="M6 3v7a2 2 0 004 0V3M8 12v9M17 3c-2 2-3 5-3 8h3v10"/>'],['goals','Mål','<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'],['prog','Fremgang','<path d="M4 20V10M10 20V4M16 20v-8M21 20H3"/>']];
-const VIEWS={today:vToday,work:vWork,food:vFood,goals:vGoals,prog:vProg};
+const TABS=[['today','I dag','<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>'],['work','Trening','<path d="M4 9v6M7 6v12M17 6v12M20 9v6M7 12h10"/>'],['food','Mat','<path d="M6 3v7a2 2 0 004 0V3M8 12v9M17 3c-2 2-3 5-3 8h3v10"/>'],['prog','Fremgang','<path d="M4 20V10M10 20V4M16 20v-8M21 20H3"/>']];
+const VIEWS={today:vToday,work:vWork,food:vFood,prog:vProg};
 function render(keep){
   const nav=$('#tabs');
   if(!S.onboarded){nav.hidden=true;$('#view').innerHTML=vOnboard();return}
   nav.hidden=false;
   nav.firstElementChild.innerHTML=TABS.map(([k,l,i])=>`<button class="${tab===k?'on':''}" data-a="tab" data-t="${k}"><svg viewBox="0 0 24 24">${i}</svg>${l}</button>`).join('');
-  const y=scrollY;$('#view').innerHTML=VIEWS[tab]();
+  const y=scrollY;$('#view').innerHTML=(VIEWS[tab]||VIEWS[tab='today'])();
   syncToday();syncSnack();syncDecl();loadPics();
   scrollTo(0,keep?y:0);
 }

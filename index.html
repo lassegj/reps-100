@@ -184,7 +184,7 @@ function save(){S.u=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}c
 /* ---------- account + sync (Supabase) ----------
    State is one row per user (merged per day, newest wins); photos and the voice memo are files in a private bucket.
    The app keeps working from the device copy when signed out or offline. */
-const SB_URL='',SB_KEY='';
+const SB_URL='https://jvctmdyiytzbxycrlbjn.supabase.co',SB_KEY='sb_publishable_NsFJNte1jJdUhXE62HPlpA_fLXe5jum'; // publishable key: safe to ship, access is limited by row level security
 let sb=null,sess=null,syncAt=0,syncBusy=false,syncAgain=false,syncMsg='',syncT=0;
 const typing=()=>!!document.activeElement?.matches('input,textarea,select');
 const MK='reps100.sync';
@@ -720,7 +720,7 @@ const A={
   async signin(){const e=$('#lg-e').value.trim(),p=$('#lg-p').value,m=$('#lg-m');if(!e||!p)return m.textContent='Fyll inn e-post og passord.';m.textContent='Logger inn …';
     const{error}=await sb.auth.signInWithPassword({email:e,password:p});if(error)return m.textContent=authErr(error);closeSheet();toast('Innlogget')},
   async signup(){const e=$('#lg-e').value.trim(),p=$('#lg-p').value,m=$('#lg-m');if(!e||p.length<8)return m.textContent='Fyll inn e-post og et passord på minst 8 tegn.';m.textContent='Oppretter konto …';
-    const{data,error}=await sb.auth.signUp({email:e,password:p});if(error)return m.textContent=authErr(error);
+    const{data,error}=await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:location.origin+location.pathname}});if(error)return m.textContent=authErr(error);
     if(data?.session){closeSheet();toast('Konto opprettet')}else m.textContent='Sjekk e-posten og bekreft kontoen. Logg så inn her.'},
   async signout(){try{await sb.auth.signOut()}catch(e){}toast('Logget ut. Dataene ligger fortsatt på denne enheten.')},
   syncnow(){syncNow(true)},

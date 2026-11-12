@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Reps 100</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Reps">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EDF1F2" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1515" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap">
+<style>
+/* layout: one phone-width column of cards, fixed tab bar at the bottom */
+:root{
+  --bg:#EDF1F2;--card:#FFFFFF;--ink:#12201F;--muted:#5B6968;--line:#D3DCDB;
+  --accent:#0F6E6E;--accent-ink:#FFFFFF;--soft:#D7ECEA;--gold:#C98A12;--warn:#B5412B;--warn-soft:#F8E5DF;
+  color-scheme:light;--r:18px;--display:"Space Grotesk",system-ui,sans-serif;--body:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0E1515;--card:#172020;--ink:#ECF1F0;--muted:#94A3A1;--line:#283534;
+  --accent:#5FD0C5;--accent-ink:#06201E;--soft:#143432;--gold:#E8B84A;--warn:#F08A72;--warn-soft:#3A1E18;color-scheme:dark
+}}
+:root[data-theme="dark"]{
+  --bg:#0E1515;--card:#172020;--ink:#ECF1F0;--muted:#94A3A1;--line:#283534;
+  --accent:#5FD0C5;--accent-ink:#06201E;--soft:#143432;--gold:#E8B84A;--warn:#F08A72;--warn-soft:#3A1E18;color-scheme:dark
+}
+[hidden]{display:none!important}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 var(--body)}
+h1,h2,.clock,.ring b,.stats b{font-family:var(--display)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none;padding:0}
+#app{max-width:480px;margin:0 auto;padding-top:calc(18px + env(safe-area-inset-top,0px));padding-bottom:calc(96px + env(safe-area-inset-bottom,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3,p{margin:0}
+h1{font-size:40px;line-height:1;font-weight:800;letter-spacing:-.03em}
+h1 span{font-size:18px;color:var(--muted);font-weight:600;letter-spacing:0}
+h2{font-size:22px;font-weight:800;letter-spacing:-.02em;margin:26px 0 10px}
+h2:first-child{margin-top:6px}
+h3{font-size:16px;font-weight:700}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.muted{color:var(--muted)}.small{font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:10px}
+.hero{display:flex;gap:16px;align-items:center;margin:4px 0 16px}
+.ring{position:relative;width:104px;height:104px;flex:none}
+.ring svg{transform:rotate(-90deg)}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.ring circle{fill:none;stroke-width:10}
+.ring .bg{stroke:var(--line)}.ring .fg{stroke:var(--accent);stroke-linecap:round;transition:stroke-dashoffset .4s}
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:14px;padding:12px 14px;font-weight:600;font-size:14px;margin-bottom:10px}
+.banner.ok{background:var(--soft);color:var(--accent)}
+.habit{display:flex;gap:14px;align-items:flex-start}
+.habit .hb{flex:1;min-width:0}
+.chk{width:44px;height:44px;border-radius:50%;border:2.5px solid var(--line);flex:none;display:grid;place-items:center;transition:.15s}
+.chk svg{width:22px;height:22px;stroke:var(--accent-ink);stroke-width:3;fill:none;opacity:0;transform:scale(.5);transition:.15s}
+.habit.done .chk{background:var(--accent);border-color:var(--accent)}
+.habit.done .chk svg{opacity:1;transform:none}
+.habit.done h3{color:var(--accent)}
+.sub{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{height:8px;background:var(--line);border-radius:9px;overflow:hidden;margin:8px 0}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:9px;width:0;transition:width .3s}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.chip{padding:9px 14px;border-radius:99px;background:var(--bg);border:1px solid var(--line);font-weight:650;font-size:14px;min-height:40px}
+.chip:active{transform:scale(.96)}
+.chip.on{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.chip.ghost{color:var(--muted)}
+.btn{display:block;width:100%;padding:15px;border-radius:14px;background:var(--accent);color:var(--accent-ink);font-weight:750;font-size:16px;text-align:center}
+.btn:active{transform:scale(.985)}
+.btn.sec{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.btn.warn{background:none;color:var(--warn);border:1px solid var(--warn)}
+.row{display:flex;gap:10px}.row>*{flex:1}
+input[type=text],input[type=number],input[type=date],select,textarea{width:100%;padding:12px 13px;border-radius:12px;border:1px solid var(--line);background:var(--bg);min-height:46px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:92px;resize:vertical}
+label.f{display:block;font-size:13px;font-weight:650;color:var(--muted);margin:10px 0 5px}
+.grat input{margin-top:6px}
+details summary{cursor:pointer;font-weight:650;list-style:none}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"＋";float:right;color:var(--muted)}
+details[open] summary::after{content:"－"}
+#tabs{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);padding:6px max(8px,env(safe-area-inset-right,0px)) calc(6px + env(safe-area-inset-bottom,0px)) max(8px,env(safe-area-inset-left,0px));display:flex;justify-content:center;z-index:5}
+#tabs div{display:flex;width:100%;max-width:480px}
+#tabs button{flex:1;padding:6px 0;font-size:11px;font-weight:650;color:var(--muted);display:grid;gap:2px;justify-items:center}
+#tabs svg{width:24px;height:24px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+#tabs button.on{color:var(--accent)}
+.ex{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.ex:last-child{border:0}
+.ex .tag{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--accent);width:92px;flex:none}
+.ex .nm{flex:1;font-weight:650;min-width:0}
+.ex select{flex:1;min-width:0;min-height:40px;padding:8px 10px;font-weight:650}
+.ex .g{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ex a{color:var(--muted);font-size:13px;text-decoration:none;padding:6px}
+.icon{width:38px;height:38px;border-radius:50%;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;flex:none;font-size:16px}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px}
+.seg button{flex:1;padding:8px 0;border-radius:9px;font-weight:700;font-size:14px;color:var(--muted)}
+.seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.lvl{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:center;margin-top:8px;font-weight:650;font-size:14px}
+.clock{font-size:76px;font-weight:800;text-align:center;font-variant-numeric:tabular-nums;letter-spacing:-.04em;line-height:1.1}
+.grid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px}
+.grid button{aspect-ratio:1;border-radius:50%;font-size:11px;font-weight:700;border:1.5px solid var(--line);color:var(--muted);font-variant-numeric:tabular-nums}
+.grid .part{background:var(--soft);border-color:var(--soft);color:var(--accent)}
+.grid .full{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.grid .miss{border-style:dashed;border-color:var(--warn);color:var(--warn)}
+.grid .ms{box-shadow:0 0 0 2px var(--gold)}
+.grid .now{outline:2.5px solid var(--ink);outline-offset:2px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px}
+.stats div{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;text-align:center}
+.stats div{padding:12px 4px}
+.stats b[style]{font-size:16px!important;white-space:nowrap}
+.stats b{display:block;font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.stats span{font-size:12px;color:var(--muted);font-weight:600}
+.check{display:flex;align-items:center;gap:10px;padding:8px 0;font-weight:550}
+.check input{width:22px;height:22px;accent-color:var(--accent);flex:none}
+.cols{columns:2;column-gap:14px}.cols .check{break-inside:avoid;padding:5px 0;font-size:14px}
+.verdict{font-weight:750;margin-top:10px}
+.decl{white-space:pre-wrap;font-size:15px;line-height:1.6;background:var(--bg);border-radius:12px;padding:14px;margin:10px 0}
+.step{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-size:13px;font-weight:800;margin-right:8px}
+#sheet{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:10;display:flex;align-items:flex-end;justify-content:center}
+#sheet[hidden]{display:none}
+#sheet .in{background:var(--card);width:100%;max-width:480px;max-height:92dvh;overflow:auto;border-radius:22px 22px 0 0;padding:20px 18px calc(22px + env(safe-area-inset-bottom))}
+#toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom));transform:translate(-50%,20px);background:var(--ink);color:var(--bg);padding:11px 18px;border-radius:99px;font-weight:650;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:20;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translate(-50%,0)}
+.link{color:var(--accent);font-weight:650;text-decoration:underline;text-underline-offset:3px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+ul.tips{margin:8px 0 0;padding-left:18px;color:var(--muted);font-size:14px}
+ul.tips li{margin:3px 0}
+.pics{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.pic{aspect-ratio:3/4;border-radius:12px;overflow:hidden;position:relative;background:var(--bg);border:1px dashed var(--line);display:grid;place-items:center;font-size:13px;font-weight:650;color:var(--muted);cursor:pointer;width:100%}
+.pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.pic.has{border-style:solid}
+.pic.has span{position:absolute;left:6px;bottom:6px;background:var(--ink);color:var(--bg);padding:2px 8px;border-radius:99px;font-size:11px}
+.cmp{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+</style>
+</head>
+<body>
+<div id="app"><main id="view"></main></div>
+<nav id="tabs" hidden><div></div></nav>
+<div id="sheet" hidden><div class="in"></div></div>
+<div id="toast"></div>
+
+<script>
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const pad=n=>String(n).padStart(2,'0');
+const dk=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const pd=k=>{const[a,b,c]=k.split('-').map(Number);return new Date(a,b-1,c)};
+const today=()=>dk(new Date());
+const addDays=(k,n)=>{const d=pd(k);d.setDate(d.getDate()+n);return dk(d)};
+const diff=(a,b)=>Math.round((pd(a)-pd(b))/864e5);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isFinite(n)?n:0};
+const nf=(n,d=1)=>Number(n).toLocaleString('nb-NO',{maximumFractionDigits:d});
+const fmtDate=k=>pd(k).toLocaleDateString('nb-NO',{weekday:'long',day:'numeric',month:'short'});
+const pick=a=>a[Math.floor(Math.random()*a.length)];
+const CHECK='<svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),2200)}
+
+/* ---------- state ---------- */
+const KEY='reps100.v1';
+const DEF={onboarded:false,name:'',start:today(),
+  targets:{protein:150,kcalMin:1900,kcalMax:2200,water:3.8},
+  profile:{sex:'m',age:35,height:180,weight:80,target:80,act:1.375,goal:'cut'},
+  days:{},levels:{arms:1,legs:1,abs:1,back:1},plan:null,
+  weights:[],baseline:{},photos:{},grocery:{},pics:{},hideInstall:false,
+  goals:{w1:'',w2:'',wisdom:'',stature:'',faith:'',people:'',heard:{},memo:false}};
+let S=load();
+function load(){try{const s=JSON.parse(localStorage.getItem(KEY));if(s)return{...structuredClone(DEF),...s,targets:{...DEF.targets,...s.targets},profile:{...DEF.profile,...s.profile},goals:{...DEF.goals,...s.goals},levels:{...DEF.levels,...s.levels}}}catch(e){}return structuredClone(DEF)}
+function save(){S.u=Date.now();try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Kunne ikke lagre – lagringen på enheten er full.')}}
+const syncText=()=>'Alt lagres på denne enheten. Ta en sikkerhetskopi av og til.';
+const HABITS=[['move','Bevegelse'],['protein','Protein'],['kcal','Kalorier'],['water','Vann'],['grat','Takknemlighet']];
+const emptyDay=()=>({done:{},moves:{},protein:0,kcal:0,water:0,grat:['','','','','']});
+function day(k,create){if(!S.days[k]){if(!create)return emptyDay();S.days[k]=emptyDay()}return S.days[k]}
+const score=k=>{const d=S.days[k];return d?HABITS.filter(h=>d.done[h[0]]).length:0};
+const dayNo=k=>diff(k,S.start)+1;
+function streak(){let k=today(),n=0;if(!score(k))k=addDays(k,-1);while(score(k)&&diff(k,S.start)>=0){n++;k=addDays(k,-1)}return n}
+
+const krange=d=>d.kr||[S.targets.kcalMin,S.targets.kcalMax];
+
+let tab='today',viewDate=today();
+
+/* ---------- today ---------- */
+function vToday(){
+  const k=viewDate,d=day(k),n=dayNo(k),isT=k===today(),t=S.targets;
+  const y=addDays(k,-1);
+  let banner='';
+  if(isT&&n>1&&n<=100&&!score(y)&&!score(addDays(y,-1))&&n>2)banner=`<div class="banner">To dager glapp. Du er ikke ute – du taper bare hvis du slutter. Tilbake i dag.</div>`;
+  else if(isT&&n>1&&!score(y))banner=`<div class="banner">I går glapp. Aldri to på rad – gjør i hvert fall minimum i dag.</div>`;
+  if(isT&&[25,50,75,100].includes(n))banner+=`<div class="banner ok">Milepæl: dag ${n}! Feir den. 🎉</div>`;
+  if(isT&&!S.hideInstall&&!(navigator.standalone||matchMedia('(display-mode: standalone)').matches))banner+=`<div class="banner ok">Legg appen på Hjem-skjermen: trykk Del og velg «Legg til på Hjem-skjerm». Gjør det før du begynner å logge, for appen på Hjem-skjermen har sitt eget lager. <button class="link" data-a="hideinst">Skjul</button></div>`;
+  if(n>100&&isT)banner+=`<div class="banner ok">Du har passert 100 dager. Du stopper ikke nå – <button class="link" data-a="newround">start neste 100</button>.</div>`;
+  const c=2*Math.PI*46;
+  return `
+  <section class="hero">
+    <div class="ring"><svg width="104" height="104"><circle class="bg" cx="52" cy="52" r="46"/><circle class="fg" id="ringfg" cx="52" cy="52" r="46" stroke-dasharray="${c}" stroke-dashoffset="${c}"/></svg><b id="ringtx">0/5</b></div>
+    <div>
+      <div class="eyebrow">${isT?'I dag':esc(fmtDate(k))}</div>
+      <h1>Dag ${n<1?'–':n}<span> / 100</span></h1>
+      <p class="muted" id="status" style="margin-top:6px;font-weight:600"></p>
+      ${isT?'':'<button class="link small" data-a="gotoday">← Tilbake til i dag</button>'}
+    </div>
+  </section>
+  ${banner}
+  <article class="card habit" id="h-move">
+    <button class="chk" data-a="toggle" data-h="move" aria-label="Bevegelse">${CHECK}</button>
+    <div class="hb"><h3>Bevegelse</h3><p class="sub" id="s-move"></p>
+      <div class="chips"><button class="chip" id="mv-work" data-a="tab" data-t="work">20-min økt</button><button class="chip" id="mv-basket" data-a="mv" data-k="basket">Basketøkt</button><button class="chip" id="mv-walk" data-a="mv" data-k="walk">Lang tur 10k+</button><button class="chip ghost" data-a="min">Travel dag?</button></div></div>
+  </article>
+  <article class="card habit" id="h-protein">
+    <button class="chk" data-a="toggle" data-h="protein" aria-label="Protein">${CHECK}</button>
+    <div class="hb"><h3>Protein</h3><p class="sub" id="s-protein"></p><div class="bar"><i id="b-protein"></i></div>
+      <div class="chips">${[10,25,50].map(v=>`<button class="chip" data-a="add" data-f="protein" data-v="${v}">+${v} g</button>`).join('')}<button class="chip ghost" data-a="add" data-f="protein" data-v="-10">−10</button></div></div>
+  </article>
+  <article class="card habit" id="h-kcal">
+    <button class="chk" data-a="toggle" data-h="kcal" aria-label="Kalorier">${CHECK}</button>
+    <div class="hb"><h3>Kalorier</h3><p class="sub">Mål ${krange(d)[0]}–${krange(d)[1]} kcal · bevisst, ikke perfekt</p>
+      <input type="number" inputmode="numeric" placeholder="Kcal i dag (valgfritt)" data-i="kcal" value="${d.kcal||''}" style="margin-top:8px"></div>
+  </article>
+  <article class="card habit" id="h-water">
+    <button class="chk" data-a="toggle" data-h="water" aria-label="Vann">${CHECK}</button>
+    <div class="hb"><h3>Vann</h3><p class="sub" id="s-water"></p><div class="bar"><i id="b-water"></i></div>
+      <div class="chips">${[.25,.5,1].map(v=>`<button class="chip" data-a="add" data-f="water" data-v="${v}">+${nf(v,2)} L</button>`).join('')}<button class="chip ghost" data-a="add" data-f="water" data-v="-0.25">−</button></div></div>
+  </article>
+  <article class="card habit" id="h-grat">
+    <button class="chk" data-a="toggle" data-h="grat" aria-label="Takknemlighet">${CHECK}</button>
+    <div class="hb"><details ${d.done.grat?'':'open'}><summary><h3 style="display:inline">Takknemlighet</h3></summary>
+      <div class="grat">${d.grat.map((g,i)=>`<input type="text" data-i="grat" data-n="${i}" placeholder="${i+1}. Jeg er takknemlig for …" value="${esc(g)}">`).join('')}</div></details>
+      <p class="sub" id="s-grat"></p></div>
+  </article>
+  <button class="btn sec" data-a="copy" style="margin-top:6px">Kopier innsjekk til fellesskapet</button>`;
+}
+function syncToday(){
+  if(tab!=='today')return;
+  const k=viewDate,d=day(k),t=S.targets,sc=score(k),c=2*Math.PI*46;
+  HABITS.forEach(([h])=>{const e=$('#h-'+h);if(e)e.classList.toggle('done',!!d.done[h])});
+  $('#ringfg').style.strokeDashoffset=c*(1-sc/5);$('#ringtx').textContent=sc+'/5';
+  $('#status').textContent=sc===5?'Full seier! 🏆':sc?`Du møtte opp. ${5-sc} igjen til full seier.`:'Vinn dagen – selv 1 minutt teller.';
+  const w=d.workout,mv=d.moves||{},parts=[];
+  if(w)parts.push(`Økt ${w.mins} min · ${w.rounds} ${w.rounds===1?'runde':'runder'}`);
+  if(mv.basket)parts.push('Basket');if(mv.walk)parts.push('Lang tur');
+  $('#mv-work').classList.toggle('on',!!w);$('#mv-basket').classList.toggle('on',!!mv.basket);$('#mv-walk').classList.toggle('on',!!mv.walk);
+  $('#s-move').textContent=parts.length?parts.join(' + '):d.done.move?'Gjort':'Velg hva du gjorde – eller start en økt';
+  $('#s-protein').textContent=`${d.protein} / ${t.protein} g`;$('#b-protein').style.width=Math.min(100,d.protein/t.protein*100)+'%';
+  $('#s-water').textContent=`${nf(d.water,2)} / ${nf(t.water,2)} L`;$('#b-water').style.width=Math.min(100,d.water/t.water*100)+'%';
+  $('#s-grat').textContent=`${d.grat.filter(x=>x.trim()).length} av 5 skrevet`;
+}
+
+/* ---------- workout ---------- */
+const EX={
+ arms:{n:'Armer/bryst',p:[
+  ['Kneeling Push-Ups','Chair Dips','Backpack Bicep Curls','Incline Push-Ups','Resistance Band Curls'],
+  ['Push-Ups','Close-Grip Push-Ups','Kettlebell Floor Press','Decline Push-Ups','Feet-Elevated Dips','Diamond Push-Ups','Pike Push-Ups','Kettlebell Shoulder Press','Chin-Ups','Tricep Extensions','Bodyweight Tricep Extensions','Bent Over Tricep Extensions'],
+  ['Clap Push-Ups','Archer Push-Ups','Kettlebell Push-Up Rows','Dips (parallel bars)','Deficit Push-Ups','Kettlebell Clean to Press','Handstand Push-Ups','Tension Push-Ups (pause i bunn)','Lateral Raises','Seated Kettlebell Shoulder Press','Upright Row']]},
+ legs:{n:'Bein',p:[
+  ['Bodyweight Squats','Reverse Lunges','Glute Bridges','Step-Ups','Calf Raises'],
+  ['Goblet Squat','Walking Lunges','Single-Leg Glute Bridge','Bulgarian Split Squats','Jump Squats','Jump Lunges','Kettlebell Swings','Around the World Reverse Lunges','Hamstring Curls'],
+  ['Pistol Squat (progresjon)','Kettlebell Swings','Jump Squats','Weighted Step-Ups','Romanian Deadlift','Static Lunges m/ kettlebell pass-through','Weighted Glute Bridges','Kettlebell Overhead Squats','Weighted Bulgarian Split Squats','Front Rack Squats']]},
+ abs:{n:'Mage',p:[
+  ['Dead Bugs','Crunches','Leg Raises','Plank 20–30 sek','Penguins'],
+  ['V-Ups','Hanging Knee Raises / Tuck-Ups','Side Plank 30–40 sek','Russian Twists','Kettlebell Marches','Plank Shoulder Taps','Mountain Climbers','Hollow Hold'],
+  ['Hanging Leg Raises','Toes-to-Bar (progresjon)','Plank Walk-Outs','Kettlebell Sit-Up to Press','Kettlebell Overhead Marches','Plank 60+ sek','Weighted Hollow Hold','Kettlebell Halos','Half Kneeling Chop','Ab Wheel Roll-Outs']]},
+ back:{n:'Rygg',p:[
+  ['Supermans','Backpack Bent-Over Rows','Reverse Snow Angels','Doorway Isometric Pulls','Band-Assisted Pull-Ups','Pull-Up Negatives','Banded Bent-Over Rows'],
+  ['Single-Arm Kettlebell Rows','Good Mornings','Back Extensions','Pull-Ups','Chin-Ups','Inverted Rows','Upright Rows'],
+  ['Kettlebell Renegade Rows','Kettlebell Gorilla Rows','Explosive Hip Hinges','Weighted Supermans','Kettlebell Clean and Press','Weighted Pull-Ups','Feet-Elevated Inverted Rows','Archer Pull-Ups','Climber Pull-Ups']]}
+};
+const GROUPS=['arms','legs','abs','back'];
+const LVL=['Nybegynner','Middels','Avansert','Pro'];
+const WEEK=[null,'arms','legs',null,'abs','back','arms']; // søn..lør
+const pool=g=>EX[g].p[Math.min(S.levels[g],3)-1];
+const exName=(g,n)=>n+(S.levels[g]===4?' + ekstra vekt':'');
+let T={mins:20,left:1200,end:0,run:false,rounds:0,on:false};
+function makePlan(focus){
+  const items=GROUPS.map(g=>({g,n:pick(pool(g))}));
+  const f=focus||'arms';let extra;do{extra=pick(pool(f))}while(extra===items.find(i=>i.g===f).n&&pool(f).length>1);
+  items.push({g:f,n:extra,x:true});
+  S.plan={date:today(),focus:f,items};save();
+}
+function vWork(){
+  const wd=new Date().getDay(),rest=!WEEK[wd];
+  if(!S.plan||S.plan.date!==today())makePlan(WEEK[wd]||'legs');
+  const p=S.plan;
+  if(T.on)return vTimer();
+  return `
+  <div class="eyebrow">Under 20 minutter</div><h2 style="margin-top:2px">Dagens økt</h2>
+  ${rest?'<div class="banner ok">Hviledag i ukeplanen. Ta en gåtur – eller tren likevel om du vil.</div>':''}
+  <div class="card">
+    <label class="f" style="margin-top:0">Ekstra fokus i dag</label>
+    <div class="seg">${GROUPS.map(g=>`<button class="${p.focus===g?'on':''}" data-a="focus" data-g="${g}">${EX[g].n}</button>`).join('')}</div>
+    <div style="margin-top:8px">${p.items.map((it,i)=>`
+      <div class="ex"><span class="tag">${it.x?'Fokus':EX[it.g].n}</span><span class="nm">${esc(exName(it.g,it.n))}</span>
+      <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(it.n+' exercise how to')}" target="_blank" rel="noopener" title="Se hvordan">Vis</a>
+      <button class="icon" data-a="swap" data-n="${i}" aria-label="Bytt øvelse">↻</button></div>`).join('')}</div>
+    <button class="chip" data-a="reroll" style="margin-top:10px">↻ Ny økt</button>
+  </div>
+  <div class="card">
+    <label class="f" style="margin-top:0">Tid</label>
+    <div class="seg">${[10,15,20].map(m=>`<button class="${T.mins===m?'on':''}" data-a="mins" data-v="${m}">${m} min</button>`).join('')}</div>
+    <p class="small muted" style="margin:10px 0 14px">Gå gjennom runden så mange ganger du rekker. 10–45 sek pause mellom øvelsene. Siste runde: helt til det stopper.</p>
+    <button class="btn" data-a="tstart">Start økta</button>
+  </div>
+  <div class="card"><details><summary>Mitt nivå per kroppsdel</summary>
+    ${GROUPS.map(g=>`<div class="lvl"><span>${EX[g].n}</span><div class="seg">${[1,2,3,4].map(l=>`<button class="${S.levels[g]===l?'on':''}" data-a="lvl" data-g="${g}" data-v="${l}" title="${LVL[l-1]}">${l}</button>`).join('')}</div></div>`).join('')}
+    <ul class="tips"><li><b>1 ${LVL[0]}:</b> du lærer bevegelsen, formen ryker tidlig</li><li><b>2 ${LVL[1]}:</b> god form, utfordrende men mulig</li><li><b>3 ${LVL[2]}:</b> full kontroll, trenger eksplosivt eller vekt</li><li><b>4 ${LVL[3]}:</b> nivå 3 med ekstra vekt</li><li>Klarer du 2 ekstra reps i siste sett to økter på rad? Gå opp et nivå.</li></ul>
+  </details></div>
+  <div class="card"><details><summary>Slik funker det</summary>
+    <ul class="tips"><li>Én øvelse per kroppsdel + én ekstra for dagens fokus.</li><li>Start mindre enn du tror. Vanen først.</li><li>2 min oppvarming før, tøy litt etterpå.</li><li>For lett? Saktere ned, pause i bunn, mer vekt, flere reps – så neste nivå.</li><li>Ukerytme: man armer/bryst · tir bein · ons hvile · tor mage · fre rygg · lør valgfri · søn hvile.</li></ul>
+  </details></div>`;
+}
+const clockTx=()=>{const s=Math.max(0,Math.ceil(T.run?(T.end-Date.now())/1000:T.left));return pad(Math.floor(s/60))+':'+pad(s%60)};
+function vTimer(){
+  return `<div class="eyebrow">Økt pågår</div>
+  <div class="clock" id="clock">${clockTx()}</div>
+  <p class="muted" style="text-align:center;font-weight:650;margin-bottom:14px">Runder: <span id="rounds">${T.rounds}</span></p>
+  <button class="btn" data-a="round">+ Runde ferdig</button>
+  <div class="card" style="margin-top:12px">${S.plan.items.map(it=>`<div class="ex"><span class="tag">${it.x?'Fokus':EX[it.g].n}</span><span class="nm">${esc(exName(it.g,it.n))}</span></div>`).join('')}</div>
+  <div class="row"><button class="btn sec" data-a="tpause">${T.run?'Pause':'Fortsett'}</button><button class="btn sec" data-a="tdone">Fullfør</button></div>
+  <button class="link small" data-a="tcancel" style="display:block;margin:16px auto">Avbryt uten å logge</button>`;
+}
+let wake=null;
+function tick(){
+  if(!T.on||!T.run)return;
+  const e=$('#clock');if(e)e.textContent=clockTx();
+  if(Date.now()>=T.end)finish(true);
+}
+setInterval(tick,250);
+function beep(){try{const a=new(window.AudioContext||window.webkitAudioContext)();[0,.25,.5].forEach(t=>{const o=a.createOscillator(),g=a.createGain();o.frequency.value=880;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(.2,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+t+.2);o.start(a.currentTime+t);o.stop(a.currentTime+t+.2)})}catch(e){}}
+function finish(auto){
+  const left=T.run?Math.max(0,(T.end-Date.now())/1000):T.left;
+  const mins=Math.max(1,Math.round((T.mins*60-left)/60));
+  const d=day(today(),true);d.workout={mins,rounds:T.rounds,items:S.plan.items.map(i=>i.n)};d.done.move=true;save();
+  T.on=false;T.run=false;if(wake){wake.release().catch(()=>{});wake=null}
+  if(auto)beep();
+  tab='today';viewDate=today();render();toast(`Økt logget: ${mins} min 💪`);
+}
+
+/* ---------- food ---------- */
+/* [navn, kcal/100 g, protein/100 g, maks g, min g] – ferdig tilberedt vekt, omtrentlige verdier */
+const MEAL={
+  p:[['Kylling',165,31],['Biff',200,27],['Karbonadedeig',170,26],['Laks',205,22],['Reker',100,23],['Tunfisk',110,25],['Egg + eggehvite',80,11,400],['Cottage cheese',80,13,400],['Gresk yoghurt / skyr',60,10,400]],
+  c:[['Søtpotet',90,2],['Poteter',80,2],['Ris',130,2.7],['Havregryn (tørr vekt)',370,13,100,30],['Grovt brød',240,9,160,40],['Bønner',120,8,300],['Fullkornspasta',150,5.5],['Quinoa',120,4.4]],
+  v:[['Brokkoli',35,2.8],['Rosenkål',43,3.4],['Aspargesbønner',31,1.8],['Asparges',20,2.2],['Paprika',30,1],['Spinat',23,2.9],['Gulrot',40,0.9],['Bær',50,1]]};
+const food=k=>MEAL[k].find(f=>f[0]===meal[k])||MEAL[k][0];
+function portions(){
+  const t=S.targets,kc=Math.round((t.kcalMin+t.kcalMax)/2*.3),pr=Math.round(t.protein/3);
+  const P=food('p'),C=food('c'),V=food('v'),vg=150,r10=x=>Math.round(x/10)*10,cl=(x,a,b)=>Math.min(b,Math.max(a,x));
+  let pg=0,cg=0;
+  for(let i=0;i<3;i++){
+    pg=cl(r10((pr-V[2]*vg/100-C[2]*cg/100)/P[2]*100),80,P[3]||300);
+    cg=cl(r10((kc-P[1]*pg/100-V[1]*vg/100)/C[1]*100),C[4]||50,C[3]||350)}
+  const g={p:pg,c:cg,v:vg},row=(f,x)=>[Math.round(f[1]*x/100),Math.round(f[2]*x/100)];
+  const rs=[row(P,pg),row(C,cg),row(V,vg)];
+  return{g,kcal:rs.reduce((a,r)=>a+r[0],0),protein:rs.reduce((a,r)=>a+r[1],0),kc,pr};
+}
+const SHOP={
+  'Protein':['Kyllingfilet','Biff / høyrygg','Karbonadedeig','Kalkunkjøttdeig','Laks','Reker','Tunfisk på boks','Egg','Eggehvite','Mager gresk yoghurt / skyr','Cottage cheese','Proteindrikk','Proteinpulver'],
+  'Karbo':['Søtpotet','Poteter','Ris','Havregryn','Quinoa','Grovt brød','Fullkornspasta','Bønner','Mais'],
+  'Grønt':['Brokkoli','Rosenkål','Aspargesbønner','Asparges','Spinat','Paprika','Løk','Squash','Gulrot','Agurk','Sylteagurk'],
+  'Frukt':['Frosne bær','Jordbær','Blåbær','Bringebær','Banan','Eple','Druer','Ananas'],
+  'Sunt fett':['Avokado','Olivenolje','Smør','Peanøttsmør','Mandler / cashew','Chiafrø'],
+  'Smak':['Salsa','Sennep','Hot sauce','Honning','Salt og pepper','Hvitløkspulver','Krydderblanding']};
+let meal={p:MEAL.p[0][0],c:MEAL.c[0][0],v:MEAL.v[0][0]},snack={k:'',p:'',t:false},rest='';
+function vFood(){
+  const t=S.targets,po=portions();
+  return `
+  <div class="eyebrow">Enkelt er bærekraftig</div><h2 style="margin-top:2px">Mat</h2>
+  <div class="card">
+    <h3>Mine tall</h3>
+    <div class="stats" style="margin:10px 0"><div><b>${t.protein}</b><span>g protein</span></div><div><b style="font-size:19px;line-height:34px">${t.kcalMin}–${t.kcalMax}</b><span>kcal</span></div><div><b>${nf(t.water,1)}</b><span>liter vann</span></div></div>
+    <button class="btn sec" data-a="calc">Regn ut / endre</button>
+    <ul class="tips"><li><b>Protein først.</b> Bygg hvert måltid rundt proteinet – ca. ${Math.round(t.protein/3)} g per måltid på tre måltider.</li><li><b>Kalorier deretter.</b> Hold deg i spennet ditt.</li><li>Logg i en kalori-app noen uker til du kan maten din. Ikke for alltid.</li><li>Fiber metter: ca. 14 g per 1000 kcal.</li></ul>
+  </div>
+  <div class="card">
+    <h3>Bygg et måltid</h3><p class="sub">Velg selv fra listene, eller trykk ↻ for et nytt forslag. Mengdene er tilpasset målene dine.</p>
+    ${[['p','Protein'],['c','Karbo'],['v','Grønt/frukt']].map(([k,l])=>`<label class="f" for="meal-${k}">${l}</label><div class="ex" style="padding:0 0 4px;border:0"><select id="meal-${k}" data-i="mealsel" data-k="${k}">${MEAL[k].map(f=>`<option ${f[0]===meal[k]?'selected':''}>${f[0]}</option>`).join('')}</select><span class="g">ca. ${po.g[k]} g</span><button class="icon" data-a="meal" data-k="${k}" aria-label="Nytt forslag til ${l}">↻</button></div>`).join('')}
+    <div class="banner ok" style="margin:12px 0 10px">Dette måltidet: ca. ${po.kcal} kcal · ${po.protein} g protein</div>
+    <div class="row"><button class="btn sec" data-a="meal" data-k="all">↻ Nytt forslag</button><button class="btn" data-a="mealadd">Legg til i dag</button></div>
+    <p class="small muted" style="margin-top:10px">Sikter mot ca. ${po.kc} kcal og ${po.pr} g protein per måltid (tre måltider, med rom for snacks). Vekt er ferdig tilberedt, og tallene er omtrentlige.</p>
+  </div>
+  <div class="card">
+    <h3>Snack-sjekken</h3><p class="sub">Må treffe minst 2 av 3 – ellers blir den i hylla.</p>
+    <div class="g2" style="margin-top:8px"><div><label class="f">Kalorier</label><input type="number" inputmode="numeric" data-i="snk" value="${snack.k}"></div><div><label class="f">Protein (g)</label><input type="number" inputmode="numeric" data-i="snp" value="${snack.p}"></div></div>
+    <label class="check"><input type="checkbox" data-i="snt" ${snack.t?'checked':''}> Jeg synes den er god</label>
+    <div id="snackres"></div>
+  </div>
+  <div class="card">
+    <h3>Spise ute</h3><p class="sub">Spør en AI-chat eller Google – tar 30 sekunder.</p>
+    <input type="text" placeholder="Navn på spisested" data-i="rest" value="${esc(rest)}" style="margin:8px 0">
+    <button class="btn sec" data-a="askcopy">Kopier spørsmålet</button>
+    <ul class="tips"><li>Bestill proteinet først – dobbel porsjon kjøtt er nesten alltid verdt det.</li><li>Grillet framfor fritert.</li><li>Saus og dressing ved siden av.</li><li>Dropp flytende kalorier.</li></ul>
+  </div>
+  <div class="card"><details><summary>Handleliste</summary>
+    ${Object.entries(SHOP).map(([c,its])=>`<label class="f">${c}</label><div class="cols">${its.map(i=>`<label class="check"><input type="checkbox" data-i="shop" data-k="${esc(i)}" ${S.grocery[i]?'checked':''}> ${i}</label>`).join('')}</div>`).join('')}
+    <button class="chip" data-a="shopclear" style="margin-top:12px">Nullstill lista</button>
+  </details></div>
+  <p class="small muted" style="padding:4px 6px">Dette er generelle tommelfingerregler, ikke medisinske råd. Snakk med lege før større endringer i kostholdet.</p>`;
+}
+function syncSnack(){
+  const e=$('#snackres');if(!e)return;const k=num(snack.k),p=num(snack.p);
+  if(!k){e.innerHTML='';return}
+  const a=p/k*100>=10,b=k<200,c=snack.t,n=a+b+c;
+  e.innerHTML=`<ul class="tips"><li>${a?'✅':'❌'} Høyt protein (10 g+ per 100 kcal)</li><li>${b?'✅':'❌'} Lavt kaloriinnhold (under 200)</li><li>${c?'✅':'❌'} Smaker godt</li></ul><p class="verdict" style="color:var(${n>=2?'--accent':'--warn'})">${n}/3 – ${n>=2?'Godkjent 👍':'La den stå i hylla'}</p>`;
+}
+function calcNums(p){
+  const bmr=10*p.weight+6.25*p.height-5*p.age+(p.sex==='m'?5:-161),tdee=bmr*p.act;
+  const r=p.goal==='cut'?[-500,-300]:p.goal==='bulk'?[200,350]:[-100,100];
+  const rd=x=>Math.round(x/50)*50;
+  return{tdee:Math.round(tdee),kcalMin:rd(tdee+r[0]),kcalMax:rd(tdee+r[1]),protein:Math.round(p.target*2.2/5)*5};
+}
+function calcSheet(){
+  const p=S.profile,t=S.targets;
+  sheet(`<h2>Mine tall</h2>
+  <p class="sub">Fyll inn, så får du et forslag. Du kan overstyre alt nederst.</p>
+  <div class="g2"><div><label class="f">Kjønn</label><select data-p="sex"><option value="m" ${p.sex==='m'?'selected':''}>Mann</option><option value="f" ${p.sex==='f'?'selected':''}>Kvinne</option></select></div>
+  <div><label class="f">Alder</label><input type="number" inputmode="numeric" data-p="age" value="${p.age}"></div>
+  <div><label class="f">Høyde (cm)</label><input type="number" inputmode="numeric" data-p="height" value="${p.height}"></div>
+  <div><label class="f">Vekt nå (kg)</label><input type="number" inputmode="decimal" data-p="weight" value="${p.weight}"></div>
+  <div><label class="f">Målvekt (kg)</label><input type="number" inputmode="decimal" data-p="target" value="${p.target}"></div>
+  <div><label class="f">Mål</label><select data-p="goal"><option value="cut" ${p.goal==='cut'?'selected':''}>Ned i fett</option><option value="keep" ${p.goal==='keep'?'selected':''}>Holde</option><option value="bulk" ${p.goal==='bulk'?'selected':''}>Bygge</option></select></div></div>
+  <label class="f">Aktivitet</label><select data-p="act">${[[1.2,'Stillesittende'],[1.375,'Lett aktiv (1–3 økter/uke)'],[1.55,'Aktiv (3–5 økter/uke)'],[1.725,'Veldig aktiv']].map(([v,l])=>`<option value="${v}" ${p.act==v?'selected':''}>${l}</option>`).join('')}</select>
+  <div class="banner ok" id="calcres" style="margin-top:14px"></div>
+  <button class="btn sec" data-a="calcuse">Bruk forslaget</button>
+  <h3 style="margin-top:20px">Mine daglige mål</h3>
+  <div class="g2"><div><label class="f">Protein (g)</label><input type="number" inputmode="numeric" id="t-protein" value="${t.protein}"></div><div><label class="f">Vann (L)</label><input type="number" inputmode="decimal" step="0.1" id="t-water" value="${t.water}"></div>
+  <div><label class="f">Kcal fra</label><input type="number" inputmode="numeric" id="t-kmin" value="${t.kcalMin}"></div><div><label class="f">Kcal til</label><input type="number" inputmode="numeric" id="t-kmax" value="${t.kcalMax}"></div></div>
+  <button class="btn" data-a="calcsave" style="margin-top:16px">Lagre</button>
+  <p class="small muted" style="margin-top:10px">Forslaget er et estimat: vedlikehold ± et lite over-/underskudd, og ca. 2,2 g protein per kg målvekt. Juster etter noen uker.</p>`);
+  syncCalc();
+}
+function syncCalc(){const e=$('#calcres');if(!e)return;const c=calcNums(S.profile);e.textContent=`Forslag: ${c.kcalMin}–${c.kcalMax} kcal · ${c.protein} g protein (vedlikehold ca. ${c.tdee} kcal)`}
+
+/* ---------- goals ---------- */
+const AREAS=[['wisdom','Visdom','Hvordan vil jeg lære og vokse?'],['stature','Kropp','Hvordan vil jeg se ut, føle meg og fungere fysisk?'],['faith','Tro','Hvordan vil jeg styrke troen min og det åndelige livet?'],['people','Mennesker','Hvordan vil jeg stille opp på jobb og i relasjonene mine?']];
+const words=s=>s.split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
+function declaration(){
+  const g=S.goals,nm=S.name||'meg';
+  const ia=w=>words(w).map(x=>`Jeg er ${x.toLowerCase()}.`).join(' ');
+  const parts=AREAS.map(a=>g[a[0]].trim()).filter(Boolean);
+  if(words(g.w2).length)parts.push(`${ia(g.w2)}\nJeg er ${nm}.`);
+  if(words(g.w1).length)parts.push(`${ia(g.w1)}\nJeg vet hvem jeg er. Jeg er ${nm}.`);
+  return parts.join('\n\n');
+}
+let rec=null,player=null;
+function vGoals(){
+  const g=S.goals,heard=g.heard[today()];
+  return `
+  <div class="eyebrow">Bli personen først</div><h2 style="margin-top:2px">Mål</h2>
+  ${g.memo?`<div class="card" style="border-color:var(--accent)"><h3>Dagens lytting ${heard?'✓':''}</h3><p class="sub">Hør din egen stemme hver dag – helst om morgenen.</p><button class="btn" data-a="play" style="margin-top:10px">▶ Spill av erklæringen min</button></div>`:''}
+  <div class="card"><h3><span class="step">1</span>Hvem vil jeg bli?</h3>
+    <label class="f">3–10 ord: slik vil jeg ideelt beskrive meg selv</label><input type="text" data-g="w1" value="${esc(g.w1)}" placeholder="stabil, sterk, snill, raus …">
+    <label class="f">Slik vil jeg at mine nærmeste skal beskrive meg</label><input type="text" data-g="w2" value="${esc(g.w2)}" placeholder="til å stole på, støttende, sunn …">
+    <p class="small muted" style="margin-top:8px">Skill ordene med komma. Disse ordene er filteret for alle målene dine.</p></div>
+  <div class="card"><h3><span class="step">2</span>Fire livsområder</h3>
+    <p class="sub">Se for deg at det har gått ett år, og at det ble ditt beste. Skriv i nåtid, som om det allerede er sant – og ta med <b>hvorfor</b>.</p>
+    ${AREAS.map(([k,n,q])=>`<label class="f">${n} – ${q}</label><textarea data-g="${k}" placeholder="Jeg …">${esc(g[k])}</textarea>`).join('')}
+    <ul class="tips"><li>Maks 1–2 mål per område. Fokus er alt.</li><li>Svakt: «Jeg leste 24 bøker.» Sterkt: «Jeg hører på bøker for å løfte blikket mitt. Jeg fullfører 24 i året.»</li></ul></div>
+  <div class="card"><h3><span class="step">3</span>Gjør det holdbart</h3>
+    <ul class="tips"><li><b>Målbart:</b> om ett år skal du kunne si «det gjorde jeg».</li><li><b>Én ansvarsperson:</b> ikke ingen, ikke alle – én som er knyttet til målet.</li><li><b>Tenk år, ikke dag:</b> 5 økter × 52 uker = 260. Gi deg selv rom: si 200.</li><li><b>Høyt ideal + lav baseline:</b> ideal «et kapittel», baseline «én setning». Baseline klarer du alltid.</li></ul></div>
+  <div class="card"><h3><span class="step">4</span>Erklæringen min</h3>
+    <div class="decl" id="decl"></div>
+    <h3 style="margin-top:14px"><span class="step">5</span>Les den inn – og lytt hver dag</h3>
+    <p class="sub">Les høyt med følelse mens motivasjonen er høy. Gjør du bare én ting fra denne siden, gjør dette.</p>
+    <div class="row" style="margin-top:10px"><button class="btn ${rec?'warn':'sec'}" data-a="rec">${rec?'■ Stopp opptak':g.memo?'● Ta opp på nytt':'● Ta opp'}</button>${g.memo?'<button class="btn sec" data-a="play">▶ Spill av</button>':''}</div>
+    <label class="link small" for="memofile" style="display:inline-block;margin-top:12px;cursor:pointer">Eller last opp et opptak</label><input type="file" id="memofile" accept="audio/*" hidden>
+    <p class="small muted" style="margin-top:8px">Opptaket lagres bare på denne enheten.</p>
+    <p class="small muted" style="margin-top:8px">Lyttet ${Object.keys(g.heard).length} dager totalt.</p></div>`;
+}
+function syncDecl(){const e=$('#decl');if(e)e.textContent=declaration()||'Fyll inn ordene og målene over, så bygges erklæringen din her.'}
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('reps100',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function idbSet(k,v){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+async function idbDel(k){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').delete(k);tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+async function idbClear(){const db=await idb();return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').clear();tx.oncomplete=res;tx.onerror=()=>rej(tx.error)})}
+async function idbGet(k){const db=await idb();return new Promise((res,rej)=>{const r=db.transaction('kv').objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)})}
+async function recToggle(){
+  if(rec){rec.stop();return}
+  if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder)return toast('Opptak støttes ikke her – last opp et opptak i stedet.');
+  try{const st=await navigator.mediaDevices.getUserMedia({audio:true}),chunks=[];
+    rec=new MediaRecorder(st);
+    rec.ondataavailable=e=>chunks.push(e.data);
+    rec.onstop=async()=>{st.getTracks().forEach(t=>t.stop());const b=new Blob(chunks,{type:rec.mimeType});rec=null;
+      try{await idbSet('memo',b);S.goals.memo=true;save();toast('Opptak lagret')}catch(e){toast('Kunne ikke lagre opptaket')}render(1)};
+    rec.start();render(1);
+  }catch(e){rec=null;toast('Fikk ikke tilgang til mikrofonen')}
+}
+async function playMemo(){
+  try{const b=await idbGet('memo');if(!b)return toast('Fant ikke opptaket');
+    if(player)player.pause();player=new Audio(URL.createObjectURL(b));await player.play();
+    S.goals.heard[today()]=1;save();render()}catch(e){toast('Kunne ikke spille av')}
+}
+
+/* ---------- photos (stored as blobs in IndexedDB on this device) ---------- */
+const POSES=[['front','Foran'],['side','Side'],['back','Bak']],PDAYS=[1,30,60,100];
+const pkey=(d,p)=>`ph:${S.start}:${d}:${p}`;
+const picUrl={};
+async function picSrc(k){if(!picUrl[k]){const b=await idbGet(k);if(b)picUrl[k]=URL.createObjectURL(b)}return picUrl[k]||''}
+function loadPics(root=document){root.querySelectorAll('img[data-pic]').forEach(async im=>{try{im.src=await picSrc(im.dataset.pic)}catch(e){}})}
+async function shrink(file){try{const bmp=await createImageBitmap(file,{imageOrientation:'from-image'}),sc=Math.min(1,1600/Math.max(bmp.width,bmp.height)),c=document.createElement('canvas');
+  c.width=Math.round(bmp.width*sc);c.height=Math.round(bmp.height*sc);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+  return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',.85))}catch(e){return file}}
+async function picAdd(k,file){try{const b=await shrink(file);await idbSet(k,b);if(picUrl[k]){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}S.pics[k]=1;save();closeSheet();render(1);toast('Bilde lagret')}catch(e){toast('Kunne ikke lagre bildet')}}
+
+/* ---------- progress ---------- */
+function vProg(){
+  const n=dayNo(today()),ks=Array.from({length:100},(_,i)=>addDays(S.start,i));
+  const past=ks.filter(k=>k<=today());
+  const shown=past.filter(k=>score(k)).length,full=past.filter(k=>score(k)===5).length;
+  const ws=S.weights,b=S.baseline;
+  let spark='';
+  if(ws.length>1){const v=ws.map(w=>w.kg),mn=Math.min(...v),mx=Math.max(...v),r=mx-mn||1;
+    const pts=v.map((x,i)=>`${(i/(v.length-1)*280+10).toFixed(1)},${(60-(x-mn)/r*50).toFixed(1)}`).join(' ');
+    spark=`<svg viewBox="0 0 300 70" style="width:100%;margin:8px 0"><polyline points="${pts}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`}
+  const dlt=ws.length>1?ws[ws.length-1].kg-ws[0].kg:0;
+  return `
+  <div class="eyebrow">Litt etter litt blir litt til mye</div><h2 style="margin-top:2px">Fremgang</h2>
+  <div class="stats"><div><b>${shown}</b><span>dager møtt opp</span></div><div><b>${full}</b><span>fulle seire</span></div><div><b>${streak()}</b><span>dager på rad</span></div></div>
+  <div class="card"><div class="grid">${ks.map((k,i)=>{const s=score(k),fut=k>today();
+    const c=(s===5?'full':s?'part':!fut&&k<today()?'miss':'')+([25,50,75,100].includes(i+1)?' ms':'')+(k===today()?' now':'');
+    return `<button class="${c}" ${fut?'disabled':''} data-a="openday" data-k="${k}" aria-label="Dag ${i+1}">${i+1}</button>`}).join('')}</div>
+    <p class="small muted" style="margin-top:12px">Trykk på en dag for å se eller rette den. Gullring = milepæl. Glapp en dag? Du starter ikke på nytt – du fortsetter.</p></div>
+  <div class="card"><h3>Vekt</h3><p class="sub">Én gang i uka holder. Samme dag, samme tid.</p>
+    ${spark}
+    ${ws.length?`<p class="sub">Sist: <b>${nf(ws[ws.length-1].kg)} kg</b>${ws.length>1?` · ${dlt>0?'+':''}${nf(dlt)} kg siden start`:''}</p>`:''}
+    <div class="row" style="margin-top:8px"><input type="number" inputmode="decimal" step="0.1" id="wkg" placeholder="kg"><button class="btn" data-a="weigh" style="flex:0 0 110px">Logg</button></div>
+    <p class="small muted" style="margin-top:8px">Vekta er ett datapunkt. Se også på bilder, styrke og hvordan klærne sitter.</p></div>
+  <div class="card"><h3>Bilder</h3><p class="sub">Foran, side, bak. Samme lys, samme klær, samme positur. Bildene lagres bare på denne enheten.</p>
+    ${PDAYS.map(d=>`<label class="f">Dag ${d}${n>=d&&!POSES.some(([p])=>S.pics[pkey(d,p)])?' <span class="eyebrow">· ta nå</span>':''}</label><div class="pics">${POSES.map(([p,l])=>{const k=pkey(d,p);return S.pics[k]?`<button class="pic has" data-a="picview" data-k="${k}" aria-label="Dag ${d}, ${l}"><img data-pic="${k}" alt=""><span>${l}</span></button>`:`<label class="pic"><input type="file" accept="image/*" data-i="picadd" data-k="${k}" hidden><span>+ ${l}</span></label>`}).join('')}</div>`).join('')}
+    ${PDAYS.filter(d=>POSES.some(([p])=>S.pics[pkey(d,p)])).length>1?'<button class="btn sec" data-a="cmp" style="margin-top:12px">Sammenlign første og siste</button>':''}</div>
+  <div class="card"><details><summary>Startmål (valgfritt)</summary><div class="g2">
+    ${[['chest','Bryst'],['waist','Midje'],['hips','Hofter'],['arms','Armer'],['thighs','Lår']].map(([k,l])=>`<div><label class="f">${l} (cm)</label><input type="number" inputmode="decimal" data-i="base" data-k="${k}" value="${b[k]??''}"></div>`).join('')}</div></details></div>
+  <div class="card"><details><summary>Innstillinger</summary>
+    <label class="f">Navn</label><input type="text" data-i="name" value="${esc(S.name)}">
+    <label class="f">Startdato (dag 1)</label><input type="date" data-i="start" value="${S.start}">
+    <div class="row" style="margin-top:14px"><button class="btn sec" data-a="export">Sikkerhetskopi</button><label class="btn sec" for="impfile" style="cursor:pointer">Gjenopprett</label><input type="file" id="impfile" accept="application/json,.json" hidden></div>
+    <button class="btn warn" data-a="reset" style="margin-top:10px">Slett alt og start på nytt</button>
+    <p class="small muted" id="syncst" style="margin-top:10px">${syncText()}</p>
+  </details></div>
+  <div class="card"><details><summary>Reglene</summary><ul class="tips">
+    <li><b>Ingen omstart.</b> Glipper en dag, fortsetter du bare.</li><li><b>Aldri to på rad.</b> Én dag skjer. To blir et mønster.</li><li><b>Det finnes alltid en måte å vinne dagen på.</b> 1 min planke, 10 push-ups, takknemligheten. Vi dropper ikke dager – vi justerer dem.</li><li><b>Sikt på 5/5, men møt opp uansett.</b> Full seier og minimumsseier teller begge.</li><li><b>Vær ærlig.</b> Dette er for deg.</li><li><b>Du taper bare hvis du slutter.</b></li></ul></details></div>
+  <p class="small muted" style="padding:4px 6px">Uoffisiell app for eget bruk, bygget rundt DailyRepsGuy sin 100-dagers utfordring og guider.</p>`;
+}
+
+/* ---------- onboarding ---------- */
+function vOnboard(){
+  const t=S.targets;
+  return `<div style="padding-top:8vh">
+  <div class="eyebrow">100 dager · 5 vaner</div>
+  <h1 style="margin:8px 0 12px">Små reps.<br>Hver dag.</h1>
+  <p class="muted" style="margin-bottom:20px">Beveg deg, spis protein, hold kaloriene, drikk vann, vær takknemlig. Ikke perfekt – bare møt opp.</p>
+  <div class="card">
+    <label class="f" style="margin-top:0">Hva heter du?</label><input type="text" data-i="name" value="${esc(S.name)}" placeholder="Fornavn" autocomplete="given-name">
+    <label class="f">Når er dag 1?</label><input type="date" data-i="startq" value="${S.start}">
+  </div>
+  <div class="card">
+    <h3>Dine daglige mål</h3>
+    <div class="stats" style="margin:10px 0"><div><b>${t.protein}</b><span>g protein</span></div><div><b style="font-size:19px;line-height:34px">${t.kcalMin}–${t.kcalMax}</b><span>kcal</span></div><div><b>${nf(t.water,1)}</b><span>liter vann</span></div></div>
+    <button class="btn sec" data-a="calc">Regn ut mine tall</button>
+    <p class="small muted" style="margin-top:8px">Kan endres når som helst.</p>
+  </div>
+  <div class="card"><p style="font-weight:600">Jeg møter opp de neste 100 dagene. Jeg jakter ikke perfeksjon, men stabilitet. Glipper jeg én dag, glipper jeg ikke to. Jeg slutter ikke.</p></div>
+  <button class="btn" data-a="commit">Jeg er med – start</button></div>`;
+}
+
+/* ---------- shell ---------- */
+const TABS=[['today','I dag','<circle cx="12" cy="12" r="9"/><path d="M8 12.5l3 3 5-6"/>'],['work','Trening','<path d="M4 9v6M7 6v12M17 6v12M20 9v6M7 12h10"/>'],['food','Mat','<path d="M6 3v7a2 2 0 004 0V3M8 12v9M17 3c-2 2-3 5-3 8h3v10"/>'],['goals','Mål','<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>'],['prog','Fremgang','<path d="M4 20V10M10 20V4M16 20v-8M21 20H3"/>']];
+const VIEWS={today:vToday,work:vWork,food:vFood,goals:vGoals,prog:vProg};
+function render(keep){
+  const nav=$('#tabs');
+  if(!S.onboarded){nav.hidden=true;$('#view').innerHTML=vOnboard();return}
+  nav.hidden=false;
+  nav.firstElementChild.innerHTML=TABS.map(([k,l,i])=>`<button class="${tab===k?'on':''}" data-a="tab" data-t="${k}"><svg viewBox="0 0 24 24">${i}</svg>${l}</button>`).join('');
+  const y=scrollY;$('#view').innerHTML=VIEWS[tab]();
+  syncToday();syncSnack();syncDecl();loadPics();
+  scrollTo(0,keep?y:0);
+}
+function sheet(html){$('#sheet .in').innerHTML=html;$('#sheet').hidden=false}
+function closeSheet(){$('#sheet').hidden=true}
+let askFn=null;
+function ask(msg,yes,fn){askFn=fn;sheet(`<h2>${msg}</h2><div class="row" style="margin-top:16px"><button class="btn sec" data-a="close">Avbryt</button><button class="btn" data-a="askyes">${yes}</button></div>`)}
+async function copy(t,msg){try{await navigator.clipboard.writeText(t)}catch(e){const a=document.createElement('textarea');a.value=t;document.body.append(a);a.select();document.execCommand('copy');a.remove()}toast(msg||'Kopiert')}
+
+const A={
+  tab(d){tab=d.t;if(tab==='today')viewDate=today();render()},
+  gotoday(){viewDate=today();render()},
+  toggle(d){const x=day(viewDate,true);x.done[d.h]=!x.done[d.h];save();syncToday();if(score(viewDate)===5&&x.done[d.h])toast('Full seier! 🏆')},
+  add(d){const x=day(viewDate,true),f=d.f,was=score(viewDate);x[f]=Math.max(0,Math.round((x[f]+num(d.v))*100)/100);x.done[f]=x[f]>=S.targets[f];save();syncToday();if(score(viewDate)===5&&was<5)toast('Full seier! 🏆')},
+  mv(d){const x=day(viewDate,true);x.moves=x.moves||{};x.moves[d.k]=!x.moves[d.k];x.done.move=!!(x.workout||x.moves.basket||x.moves.walk);save();syncToday();if(score(viewDate)===5&&x.done.move)toast('Full seier! 🏆')},
+  min(){sheet(`<h2>Travel dag? Gjør minimum.</h2><p class="sub">Du trenger ikke perfekte forhold. Selv ett minutt teller.</p>
+    <ul class="tips" style="font-size:16px;color:var(--ink)"><li>1 min planke, 10 push-ups eller en kort gåtur – bare gjør <b>noe</b></li><li>Juster maten så godt du kan</li><li>Skriv takknemligheten din</li></ul>
+    <button class="btn" data-a="mindone" style="margin-top:18px">Jeg har beveget meg ✓</button><button class="btn sec" data-a="close" style="margin-top:8px">Lukk</button>`)},
+  mindone(){day(viewDate,true).done.move=true;save();closeSheet();syncToday();toast('Dagen er vunnet 👊')},
+  close:closeSheet,
+  askyes(){closeSheet();const f=askFn;askFn=null;f&&f()},
+  copy(){copy(`Day ${dayNo(viewDate)} — ${score(viewDate)}/5`,'Innsjekk kopiert')},
+  newround(){ask('Starte en ny 100-dagersrunde fra i dag? Historikken beholdes.','Start ny runde',()=>{S.start=today();save();render()})},
+  focus(d){makePlan(d.g);render(1)},
+  reroll(){makePlan(S.plan.focus);render(1)},
+  swap(d){const it=S.plan.items[d.n],used=S.plan.items.map(i=>i.n),c=pool(it.g).filter(n=>!used.includes(n));if(c.length){it.n=pick(c);save();render(1)}},
+  lvl(d){S.levels[d.g]=+d.v;makePlan(S.plan.focus);render(1)},
+  mins(d){T.mins=+d.v;render(1)},
+  async tstart(){T.left=T.mins*60;T.end=Date.now()+T.left*1e3;T.run=true;T.on=true;T.rounds=0;render();try{wake=await navigator.wakeLock?.request('screen')}catch(e){}},
+  tpause(){if(T.run){T.left=Math.max(0,(T.end-Date.now())/1e3);T.run=false}else{T.end=Date.now()+T.left*1e3;T.run=true}render(1)},
+  round(){T.rounds++;$('#rounds').textContent=T.rounds},
+  tdone(){finish(false)},
+  tcancel(){ask('Avbryte økta uten å logge?','Avbryt økta',()=>{T.on=false;T.run=false;render()})},
+  meal(d){(d.k==='all'?['p','c','v']:[d.k]).forEach(k=>{meal[k]=pick(MEAL[k].filter(x=>x[0]!==meal[k]))[0]});render(1)},
+  mealadd(){const po=portions(),x=day(today(),true),t=S.targets;x.protein+=po.protein;x.kcal=(x.kcal||0)+po.kcal;x.done.protein=x.protein>=t.protein;x.done.kcal=x.kcal>=krange(x)[0]&&x.kcal<=krange(x)[1];save();toast(`Lagt til i dag: ${po.protein} g protein, ${po.kcal} kcal`)},
+  askcopy(){const r=rest.trim()||'[spisested]';copy(`Hva kan jeg bestille på ${r} for et måltid med mye protein og lite kalorier? Gi meg 3 alternativer med makrofordeling.`,'Spørsmål kopiert')},
+  shopclear(){S.grocery={};save();render(1)},
+  calc:calcSheet,
+  calcuse(){const c=calcNums(S.profile);$('#t-protein').value=c.protein;$('#t-kmin').value=c.kcalMin;$('#t-kmax').value=c.kcalMax;toast('Forslag fylt inn')},
+  calcsave(){const t=S.targets;t.protein=Math.max(1,Math.round(num($('#t-protein').value)))||t.protein;t.water=num($('#t-water').value)||t.water;
+    let a=Math.round(num($('#t-kmin').value)),b=Math.round(num($('#t-kmax').value));if(a&&b){if(a>b)[a,b]=[b,a];t.kcalMin=a;t.kcalMax=b}
+    save();closeSheet();render(1);toast('Lagret')},
+  commit(){S.onboarded=true;if(!S.weights.length&&S.profile.weight)S.weights.push({d:today(),kg:S.profile.weight});save();tab='today';viewDate=today();render()},
+  rec:recToggle,play:playMemo,
+  openday(d){viewDate=d.k;tab='today';render()},
+  weigh(){const kg=num($('#wkg').value);if(!kg)return toast('Skriv inn vekt');const k=today(),e=S.weights.find(w=>w.d===k);if(e)e.kg=kg;else S.weights.push({d:k,kg});save();render(1);toast('Vekt logget')},
+  async export(){toast('Lager sikkerhetskopi …');
+    try{const blobs={},keys=[...Object.keys(S.pics),...(S.goals.memo?['memo']:[])];
+      for(const k of keys){const b=await idbGet(k);if(b)blobs[k]=await new Promise((r,j)=>{const f=new FileReader();f.onload=()=>r(f.result);f.onerror=j;f.readAsDataURL(b)})}
+      const file=new File([JSON.stringify({app:'reps100',v:1,state:S,blobs})],`reps-${today()}.json`,{type:'application/json'});
+      if(navigator.canShare?.({files:[file]})){try{await navigator.share({files:[file]});return}catch(e){if(e.name==='AbortError')return}}
+      const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=file.name;document.body.append(a);a.click();a.remove();toast('Sikkerhetskopi lagret')
+    }catch(e){toast('Kunne ikke lage sikkerhetskopi')}},
+  picview(d){sheet(`<img id="bigpic" alt="" style="width:100%;border-radius:12px;display:block"><div class="row" style="margin-top:12px"><label class="btn sec" style="cursor:pointer">Bytt bilde<input type="file" accept="image/*" data-i="picadd" data-k="${esc(d.k)}" hidden></label><button class="btn warn" data-a="picdel" data-k="${esc(d.k)}">Slett</button></div><button class="btn sec" data-a="close" style="margin-top:8px">Lukk</button>`);picSrc(d.k).then(u=>{const e=$('#bigpic');if(e)e.src=u})},
+  async picdel(d){try{await idbDel(d.k)}catch(e){}if(picUrl[d.k]){URL.revokeObjectURL(picUrl[d.k]);delete picUrl[d.k]}delete S.pics[d.k];save();closeSheet();render(1);toast('Bilde slettet')},
+  cmp(){const ds=PDAYS.filter(d=>POSES.some(([p])=>S.pics[pkey(d,p)])),a=ds[0],b=ds[ds.length-1];
+    sheet(`<h2>Dag ${a} og dag ${b}</h2>${POSES.map(([p,l])=>`<label class="f">${l}</label><div class="cmp">${[a,b].map(d=>S.pics[pkey(d,p)]?`<div class="pic has"><img data-pic="${pkey(d,p)}" alt="Dag ${d}, ${l}"><span>Dag ${d}</span></div>`:`<div class="pic"><span>Dag ${d} mangler</span></div>`).join('')}</div>`).join('')}<button class="btn sec" data-a="close" style="margin-top:14px">Lukk</button>`);loadPics($('#sheet'))},
+  hideinst(){S.hideInstall=true;save();render(1)},
+  reset(){ask('Slette alle data? Dette kan ikke angres.','Slett alt',()=>{idbClear().catch(()=>{});for(const k in picUrl){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}S=structuredClone(DEF);S.start=today();save();tab='today';viewDate=today();render()})}
+};
+document.addEventListener('click',e=>{
+  if(e.target.id==='sheet')return closeSheet();
+  const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b.dataset);
+});
+const I={
+  kcal(el){const x=day(viewDate,true),v=Math.round(num(el.value));x.kcal=v;x.done.kcal=v>=krange(x)[0]&&v<=krange(x)[1];save();syncToday()},
+  grat(el){const x=day(viewDate,true);x.grat[+el.dataset.n]=el.value;x.done.grat=x.grat.every(g=>g.trim());save();syncToday()},
+  snk(el){snack.k=el.value;syncSnack()},snp(el){snack.p=el.value;syncSnack()},snt(el){snack.t=el.checked;syncSnack()},
+  rest(el){rest=el.value},
+  picadd(el,ev){if(ev==='change'&&el.files[0])picAdd(el.dataset.k,el.files[0])},
+  mealsel(el,ev){if(ev==='change'){meal[el.dataset.k]=el.value;render(1)}},
+  shop(el){S.grocery[el.dataset.k]=el.checked;save()},
+  photo(el){S.photos[el.dataset.k]=el.checked;save()},
+  base(el){S.baseline[el.dataset.k]=el.value;save()},
+  name(el){S.name=el.value.trim();save()},
+  startq(el){if(el.value){S.start=el.value;save()}},
+  start(el,ev){if(ev==='change'&&el.value){S.start=el.value;save();render(1)}}
+};
+async function restoreFile(file){
+  try{const d=JSON.parse(await file.text()),n=d.state||d;if(!n||!n.days||!n.targets)throw 0;
+    await idbClear();for(const k in picUrl){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}
+    for(const[k,u]of Object.entries(d.blobs||{}))await idbSet(k,await(await fetch(u)).blob());
+    localStorage.setItem(KEY,JSON.stringify(n));S=load();render();toast('Gjenopprettet')
+  }catch(e){toast('Kunne ikke lese sikkerhetskopien')}
+}
+function onInput(e){
+  const el=e.target;
+  if(el.dataset.i&&I[el.dataset.i])return I[el.dataset.i](el,e.type);
+  if(el.dataset.g){S.goals[el.dataset.g]=el.value;save();syncDecl()}
+  if(el.dataset.p){S.profile[el.dataset.p]=['sex','goal'].includes(el.dataset.p)?el.value:num(el.value);save();syncCalc()}
+  if(el.id==='impfile'&&e.type==='change'&&el.files[0])restoreFile(el.files[0]);
+  if(el.id==='memofile'&&e.type==='change'&&el.files[0]){idbSet('memo',el.files[0]).then(()=>{S.goals.memo=true;save();render(1);toast('Opptak lagret')}).catch(()=>toast('Kunne ikke lagre opptaket'))}
+}
+document.addEventListener('input',onInput);document.addEventListener('change',onInput);
+render();
+navigator.storage?.persist?.().catch(()=>{});
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script>
+</body>
+</html>

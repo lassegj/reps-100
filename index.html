@@ -255,6 +255,22 @@ function streak(){let k=today(),n=0;if(!score(k))k=addDays(k,-1);while(score(k)&
 
 const krange=d=>d.kr||[S.targets.kcalMin,S.targets.kcalMax];
 
+const wOf=k=>S.weights.find(w=>w.d===k)?.kg;
+function setW(k,kg){S.weights=S.weights.filter(w=>w.d!==k);if(kg>0)S.weights.push({d:k,kg});S.weights.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0)}
+// weekly averages, counted in weeks from day 1 of the challenge
+function weekly(){const m={};for(const w of S.weights){const i=Math.floor(diff(w.d,S.start)/7);(m[i]=m[i]||[]).push(w.kg)}
+  return Object.keys(m).map(Number).sort((a,b)=>a-b).map(i=>({i,n:m[i].length,avg:m[i].reduce((a,b)=>a+b,0)/m[i].length,lab:i>=0?'Uke '+(i+1):pd(addDays(S.start,i*7)).toLocaleDateString('nb-NO',{day:'numeric',month:'short'})}))}
+function wchart(ws){
+  const W=320,H=170,L=40,R=14,T=14,B=26,v=ws.map(w=>w.avg),lo=Math.floor(Math.min(...v)-.5),hi=Math.ceil(Math.max(...v)+.5);
+  const X=i=>ws.length===1?L+(W-L-R)/2:L+i*(W-L-R)/(ws.length-1),Y=y=>T+(hi-y)*(H-T-B)/(hi-lo);
+  const grid=[lo,(lo+hi)/2,hi].map(y=>`<line x1="${L}" x2="${W-R}" y1="${Y(y)}" y2="${Y(y)}" stroke="var(--line)"/><text x="${L-6}" y="${Y(y)+4}" text-anchor="end" font-size="11" fill="var(--muted)">${nf(y)}</text>`).join('');
+  const idx=[...new Set([0,Math.floor((ws.length-1)/2),ws.length-1])];
+  const xl=idx.map(i=>`<text x="${X(i)}" y="${H-7}" text-anchor="${i===0&&ws.length>1?'start':i===ws.length-1&&ws.length>1?'end':'middle'}" font-size="11" fill="var(--muted)">${esc(ws[i].lab)}</text>`).join('');
+  const line=ws.length>1?`<polyline points="${ws.map((w,i)=>X(i).toFixed(1)+','+Y(w.avg).toFixed(1)).join(' ')}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`:'';
+  const dots=ws.map((w,i)=>`<circle cx="${X(i).toFixed(1)}" cy="${Y(w.avg).toFixed(1)}" r="${i===ws.length-1?5:3.5}" fill="var(--accent)"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;display:block;margin:10px 0" role="img" aria-label="Ukentlig snittvekt">${grid}${line}${dots}${xl}</svg>`;
+}
+
 let tab='today',viewDate=today();
 
 /* ---------- today ---------- */
@@ -306,6 +322,7 @@ function vToday(){
       <div class="grat">${d.grat.map((g,i)=>`<input type="text" data-i="grat" data-n="${i}" placeholder="${i+1}. Jeg er takknemlig for …" value="${esc(g)}">`).join('')}</div></details>
       <p class="sub" id="s-grat"></p></div>
   </article>
+  <div class="card"><div class="row" style="align-items:center"><div><h3>Vekt</h3><p class="sub">Valgfritt. Samme tid hver dag, helst om morgenen.</p></div><input type="number" inputmode="decimal" step="0.1" id="wday" data-i="wday" placeholder="kg" aria-label="Vekt i kg" value="${wOf(k)??''}" style="flex:0 0 104px"></div></div>
 `;
 }
 function syncToday(){
@@ -580,7 +597,9 @@ async function playMemo(){
 }
 
 /* ---------- photos (stored as blobs in IndexedDB on this device) ---------- */
-const POSES=[['front','Foran'],['side','Side'],['back','Bak']],PDAYS=[1,30,60,100];
+const POSES=[['front','Foran'],['side','Side'],['back','Bak']],PDAYS=[1,25,50,75,100];
+// the planned days plus any other day that already has photos (older rounds used day 30 and 60)
+const picDays=()=>[...new Set([...PDAYS,...Object.keys(S.pics).map(k=>k.split(':')).filter(a=>a[0]==='ph'&&a[1]===S.start).map(a=>+a[2])])].sort((a,b)=>a-b);
 const pkey=(d,p)=>`ph:${S.start}:${d}:${p}`;
 const picUrl={};
 async function picSrc(k){if(!picUrl[k]){const b=await idbGet(k);if(b)picUrl[k]=URL.createObjectURL(b)}return picUrl[k]||''}
@@ -608,14 +627,15 @@ function vProg(){
     const c=(s===5?'full':s?'part':!fut&&k<today()?'miss':'')+([25,50,75,100].includes(i+1)?' ms':'')+(k===today()?' now':'');
     return `<button class="${c}" ${fut?'disabled':''} data-a="openday" data-k="${k}" aria-label="Dag ${i+1}">${i+1}</button>`}).join('')}</div>
     <p class="small muted" style="margin-top:12px">Trykk på en dag for å se eller rette den. Gullring = milepæl. Glapp en dag? Du starter ikke på nytt – du fortsetter.</p></div>
-  <div class="card"><h3>Vekt</h3><p class="sub">Én gang i uka holder. Samme dag, samme tid.</p>
+  <div class="card"><h3>Vekt</h3><p class="sub">Logg gjerne hver dag, på «I dag» eller her. Ukesnittet viser retningen.</p>
     ${spark}
     ${ws.length?`<p class="sub">Sist: <b>${nf(ws[ws.length-1].kg)} kg</b>${ws.length>1?` · ${dlt>0?'+':''}${nf(dlt)} kg siden start`:''}</p>`:''}
     <div class="row" style="margin-top:8px"><input type="number" inputmode="decimal" step="0.1" id="wkg" placeholder="kg"><button class="btn" data-a="weigh" style="flex:0 0 110px">Logg</button></div>
+    ${ws.length?'<button class="btn sec" data-a="wtrend" style="margin-top:10px">Se utvikling per uke</button>':''}
     <p class="small muted" style="margin-top:8px">Vekta er ett datapunkt. Se også på bilder, styrke og hvordan klærne sitter.</p></div>
   <div class="card"><h3>Bilder</h3><p class="sub">Foran, side, bak. Samme lys, samme klær, samme positur. Bildene lagres bare på denne enheten.</p>
-    ${PDAYS.map(d=>`<label class="f">Dag ${d}${n>=d&&!POSES.some(([p])=>S.pics[pkey(d,p)])?' <span class="eyebrow">· ta nå</span>':''}</label><div class="pics">${POSES.map(([p,l])=>{const k=pkey(d,p);return S.pics[k]?`<button class="pic has" data-a="picview" data-k="${k}" aria-label="Dag ${d}, ${l}"><img data-pic="${k}" alt=""><span>${l}</span></button>`:`<label class="pic"><input type="file" accept="image/*" data-i="picadd" data-k="${k}" hidden><span>+ ${l}</span></label>`}).join('')}</div>`).join('')}
-    ${PDAYS.filter(d=>POSES.some(([p])=>S.pics[pkey(d,p)])).length>1?'<button class="btn sec" data-a="cmp" style="margin-top:12px">Sammenlign første og siste</button>':''}</div>
+    ${picDays().map(d=>`<label class="f">Dag ${d}${n>=d&&!POSES.some(([p])=>S.pics[pkey(d,p)])?' <span class="eyebrow">· ta nå</span>':''}</label><div class="pics">${POSES.map(([p,l])=>{const k=pkey(d,p);return S.pics[k]?`<button class="pic has" data-a="picview" data-k="${k}" aria-label="Dag ${d}, ${l}"><img data-pic="${k}" alt=""><span>${l}</span></button>`:`<label class="pic"><input type="file" accept="image/*" data-i="picadd" data-k="${k}" hidden><span>+ ${l}</span></label>`}).join('')}</div>`).join('')}
+    ${picDays().filter(d=>POSES.some(([p])=>S.pics[pkey(d,p)])).length>1?'<button class="btn sec" data-a="cmp" style="margin-top:12px">Sammenlign første og siste</button>':''}</div>
   <div class="card"><details><summary>Startmål (valgfritt)</summary><div class="g2">
     ${[['chest','Bryst'],['waist','Midje'],['hips','Hofter'],['arms','Armer'],['thighs','Lår']].map(([k,l])=>`<div><label class="f">${l} (cm)</label><input type="number" inputmode="decimal" data-i="base" data-k="${k}" value="${b[k]??''}"></div>`).join('')}</div></details></div>
   <div class="card"><details><summary>Innstillinger</summary>
@@ -709,7 +729,13 @@ const A={
   commit(){S.onboarded=true;if(!S.weights.length&&S.profile.weight)S.weights.push({d:today(),kg:S.profile.weight});save();tab='today';viewDate=today();render()},
   rec:recToggle,play:playMemo,
   openday(d){viewDate=d.k;tab='today';render()},
-  weigh(){const kg=num($('#wkg').value);if(!kg)return toast('Skriv inn vekt');const k=today(),e=S.weights.find(w=>w.d===k);if(e)e.kg=kg;else S.weights.push({d:k,kg});save();render(1);toast('Vekt logget')},
+  weigh(){const kg=num($('#wkg').value);if(!kg)return toast('Skriv inn vekt');setW(today(),kg);save();render(1);toast('Vekt logget')},
+  wtrend(){const ws=weekly(),a=ws[0],b=ws[ws.length-1],d=b.avg-a.avg,span=b.i-a.i,sg=x=>(x>0?'+':'')+nf(x);
+    sheet(`<h2>Vektutvikling</h2><p class="sub">Snittvekt per uke, regnet fra dag 1. Enkeltdager svinger; ukesnittet viser retningen.</p>
+    ${wchart(ws)}
+    ${ws.length>1?`<div class="banner ok">${esc(a.lab)} til ${esc(b.lab).toLowerCase()}: ${sg(d)} kg${span>0?` · ca. ${sg(d/span)} kg per uke`:''}</div>`:'<p class="small muted">Logg vekt i minst to uker for å se en trend.</p>'}
+    ${ws.map((w,i)=>`<div class="ex"><span class="tag">${esc(w.lab)}</span><span class="nm">${nf(w.avg)} kg</span><span class="g">${w.n} ${w.n===1?'veiing':'veiinger'}${i?' · '+sg(w.avg-ws[i-1].avg):''}</span></div>`).join('')}
+    <button class="btn sec" data-a="close" style="margin-top:14px">Lukk</button>`)},
   async export(){toast('Lager sikkerhetskopi …');
     try{const blobs={},keys=[...Object.keys(S.pics),...(S.goals.memo?['memo']:[])];
       for(const k of keys){const b=await idbGet(k);if(b)blobs[k]=await new Promise((r,j)=>{const f=new FileReader();f.onload=()=>r(f.result);f.onerror=j;f.readAsDataURL(b)})}
@@ -719,7 +745,7 @@ const A={
     }catch(e){toast('Kunne ikke lage sikkerhetskopi')}},
   picview(d){sheet(`<img id="bigpic" alt="" style="width:100%;border-radius:12px;display:block"><div class="row" style="margin-top:12px"><label class="btn sec" style="cursor:pointer">Bytt bilde<input type="file" accept="image/*" data-i="picadd" data-k="${esc(d.k)}" hidden></label><button class="btn warn" data-a="picdel" data-k="${esc(d.k)}">Slett</button></div><button class="btn sec" data-a="close" style="margin-top:8px">Lukk</button>`);picSrc(d.k).then(u=>{const e=$('#bigpic');if(e)e.src=u})},
   async picdel(d){try{await idbDel(d.k)}catch(e){}if(picUrl[d.k]){URL.revokeObjectURL(picUrl[d.k]);delete picUrl[d.k]}delete S.pics[d.k];S.gone[d.k]=Date.now();save();closeSheet();render(1);toast('Bilde slettet')},
-  cmp(){const ds=PDAYS.filter(d=>POSES.some(([p])=>S.pics[pkey(d,p)])),a=ds[0],b=ds[ds.length-1];
+  cmp(){const ds=picDays().filter(d=>POSES.some(([p])=>S.pics[pkey(d,p)])),a=ds[0],b=ds[ds.length-1];
     sheet(`<h2>Dag ${a} og dag ${b}</h2>${POSES.map(([p,l])=>`<label class="f">${l}</label><div class="cmp">${[a,b].map(d=>S.pics[pkey(d,p)]?`<div class="pic has"><img data-pic="${pkey(d,p)}" alt="Dag ${d}, ${l}"><span>Dag ${d}</span></div>`:`<div class="pic"><span>Dag ${d} mangler</span></div>`).join('')}</div>`).join('')}<button class="btn sec" data-a="close" style="margin-top:14px">Lukk</button>`);loadPics($('#sheet'))},
   hideinst(){S.hideInstall=true;save();render(1)},
   reset(){ask(sess?'Slette alle data, også i skyen? Dette kan ikke angres.':'Slette alle data? Dette kan ikke angres.','Slett alt',async()=>{
@@ -750,6 +776,7 @@ const I={
   grat(el){const x=day(viewDate,true);x.grat[+el.dataset.n]=el.value;x.done.grat=x.grat.every(g=>g.trim());save();syncToday()},
   snk(el){snack.k=el.value;syncSnack()},snp(el){snack.p=el.value;syncSnack()},snt(el){snack.t=el.checked;syncSnack()},
   rest(el){rest=el.value},
+  wday(el,ev){if(ev==='change'){setW(viewDate,num(el.value));save()}},
   picadd(el,ev){if(ev==='change'&&el.files[0])picAdd(el.dataset.k,el.files[0])},
   mealsel(el,ev){if(ev==='change'){meal[el.dataset.k]=el.value;render(1)}},
   shop(el){S.grocery[el.dataset.k]=el.checked;save()},

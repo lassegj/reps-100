@@ -245,7 +245,7 @@ function sbStart(){
       if(s&&s.user.id!==was)setTimeout(()=>{render(1);syncNow()},0);
       if(!s&&was)setTimeout(()=>render(1),0)});
     render(1);
-    fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}).then(r=>r.json()).then(d=>{hasGoogle=!!d?.external?.google}).catch(()=>{})}catch(e){sb=null}};
+    fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}).then(r=>r.json()).then(d=>{const was=hasGoogle;hasGoogle=!!d?.external?.google;if(hasGoogle!==was&&!typing()&&$('#sheet').hidden)render(1)}).catch(()=>{})}catch(e){sb=null}};
   document.head.append(sc);
 }
 const authErr=e=>{const t=String(e?.message||'');return /invalid login/i.test(t)?'Feil e-post eller passord.':/not confirmed/i.test(t)?'Bekreft e-posten din først. Se innboksen.':/already registered|already exists/i.test(t)?'Det finnes allerede en konto med den e-posten. Logg inn i stedet.':/signups? (not allowed|disabled)/i.test(t)?'Det er stengt for nye kontoer.':/fetch|network/i.test(t)?'Fikk ikke kontakt. Sjekk nettet og prøv igjen.':t||'Noe gikk galt.'};

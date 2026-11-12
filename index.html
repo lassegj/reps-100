@@ -102,6 +102,7 @@ details[open] summary::after{content:"－"}
 .ex select{flex:1;min-width:0;min-height:40px;padding:8px 34px 8px 10px;font-weight:650}
 .ex .g{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ex a{color:var(--muted);font-size:13px;text-decoration:none;padding:6px}
+.ex .mini{width:62px;flex:none;padding:8px 6px;text-align:center;min-height:42px}
 .ex .icon{width:34px;height:34px;font-size:14px}
 .ex{gap:8px}
 .icon{width:38px;height:38px;border-radius:50%;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;flex:none;font-size:16px}
@@ -176,7 +177,7 @@ const DEF={onboarded:false,name:'',start:today(),
   targets:{protein:150,kcalMin:1900,kcalMax:2200,water:3.8},
   profile:{sex:'m',age:35,height:180,weight:80,target:80,act:1.375,goal:'cut'},
   days:{},levels:{arms:1,legs:1,abs:1,back:1},gear:{bar:false,kb:false,band:false,vest:false},plan:null,
-  weights:[],baseline:{},photos:{},grocery:{},pics:{},gone:{},epoch:0,hideInstall:false,
+  weights:[],baseline:{},photos:{},grocery:{},exlog:{},pics:{},gone:{},epoch:0,hideInstall:false,
   goals:{w1:'',w2:'',wisdom:'',stature:'',faith:'',people:'',heard:{},memo:false}};
 let S=load();
 const norm=s=>({...structuredClone(DEF),...s,targets:{...DEF.targets,...s.targets},profile:{...DEF.profile,...s.profile},goals:{...DEF.goals,...s.goals},levels:{...DEF.levels,...s.levels},gear:{...DEF.gear,...s.gear}});
@@ -258,7 +259,9 @@ function streak(){let k=today(),n=0;if(!score(k))k=addDays(k,-1);while(score(k)&
 const krange=d=>d.kr||[S.targets.kcalMin,S.targets.kcalMax];
 
 const wOf=k=>S.weights.find(w=>w.d===k)?.kg;
-function setW(k,kg){S.weights=S.weights.filter(w=>w.d!==k);if(kg>0)S.weights.push({d:k,kg});S.weights.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0)}
+const dec=v=>v==null||v===''?'':String(v).replace('.',',');
+const r1=x=>Math.round(x*10)/10;
+function setW(k,kg){kg=r1(kg);S.weights=S.weights.filter(w=>w.d!==k);if(kg>0)S.weights.push({d:k,kg});S.weights.sort((a,b)=>a.d<b.d?-1:a.d>b.d?1:0)}
 // weekly averages, counted in weeks from day 1 of the challenge
 function weekly(){const m={};for(const w of S.weights){const i=Math.floor(diff(w.d,S.start)/7);(m[i]=m[i]||[]).push(w.kg)}
   return Object.keys(m).map(Number).sort((a,b)=>a-b).map(i=>({i,n:m[i].length,avg:m[i].reduce((a,b)=>a+b,0)/m[i].length,lab:i>=0?'Uke '+(i+1):pd(addDays(S.start,i*7)).toLocaleDateString('nb-NO',{day:'numeric',month:'short'})}))}
@@ -324,7 +327,7 @@ function vToday(){
       <div class="grat">${d.grat.map((g,i)=>`<input type="text" data-i="grat" data-n="${i}" placeholder="${i+1}. Jeg er takknemlig for …" value="${esc(g)}">`).join('')}</div></details>
       <p class="sub" id="s-grat"></p></div>
   </article>
-  <div class="card"><div class="row" style="align-items:center"><div><h3>Vekt</h3><p class="sub">Valgfritt. Samme tid hver dag, helst om morgenen.</p></div><input type="number" inputmode="decimal" step="0.1" id="wday" data-i="wday" placeholder="kg" aria-label="Vekt i kg" value="${wOf(k)??''}" style="flex:0 0 104px"></div></div>
+  <div class="card"><div class="row" style="align-items:center"><div><h3>Vekt</h3><p class="sub">Valgfritt. Samme tid hver dag, helst om morgenen.</p></div><input type="text" inputmode="decimal" step="0.1" id="wday" data-i="wday" placeholder="kg" aria-label="Vekt i kg" value="${dec(wOf(k))}" style="flex:0 0 104px"></div></div>
 `;
 }
 function syncToday(){
@@ -367,13 +370,16 @@ const GEAR=[['bar','BullBar'],['kb','Kettlebells'],['band','Strikk'],['vest','Ve
 const canDo=e=>{const g=e.split('|')[1];return !g||g.split('+').every(x=>S.gear[x])};
 const EXTAG={};for(const g in EX)for(const l of EX[g].p)for(const e of l)EXTAG[e.split('|')[0]]=e;
 const fits=n=>n in EXTAG&&canDo(EXTAG[n]);
+const isTimed=n=>/plank|hold|sek/i.test(n);
+const hasLoad=n=>/kb|vest/.test((EXTAG[n]||'').split('|')[1]||'')||/backpack|weighted|goblet/i.test(n);
+const lastTx=n=>{const l=S.exlog[n];return l?`Sist: ${l.r?l.r+(isTimed(n)?' sek':' reps'):''}${l.r&&l.kg?' · ':''}${l.kg?dec(l.kg)+' kg':''}`:''};
 const GROUPS=['arms','legs','abs','back'];
 const LVL=['Nybegynner','Middels','Avansert','Pro'];
 const WEEK=[null,'arms','legs',null,'abs','back','arms']; // søn..lør
 // movements at the chosen level that fit the gear; if none fit, the nearest level that has some
 function pool(g){const L=Math.min(S.levels[g],3);for(const l of[L,L-1,L-2,L+1,L+2]){if(l<1||l>3)continue;const a=EX[g].p[l-1].filter(canDo).map(e=>e.split('|')[0]);if(a.length)return a}return[]}
 const exName=(g,n)=>n+(S.levels[g]===4&&!/weighted|backpack/i.test(n)?(S.gear.vest?' + vektvest':S.gear.kb?' + ekstra vekt':' + sekk med vekt'):'');
-let T={mins:20,left:1200,end:0,run:false,rounds:0,on:false};
+let T={mins:20,left:1200,end:0,run:false,rounds:0,on:false,log:{}};
 function makePlan(focus){
   const items=GROUPS.map(g=>({g,n:pick(pool(g))}));
   const f=focus||'arms',first=items.find(i=>i.g===f).n;
@@ -396,7 +402,7 @@ function vWork(){
     <label class="f" style="margin-top:0">Ekstra fokus i dag</label>
     <div class="seg">${GROUPS.map(g=>`<button class="${p.focus===g?'on':''}" data-a="focus" data-g="${g}">${EX[g].n}</button>`).join('')}</div>
     <div style="margin-top:8px">${p.items.map((it,i)=>`
-      <div class="ex"><span class="tag">${it.x?'Fokus':EX[it.g].n}</span><span class="nm">${esc(exName(it.g,it.n))}</span>
+      <div class="ex"><span class="tag">${it.x?'Fokus':EX[it.g].n}</span><span class="nm">${esc(exName(it.g,it.n))}${lastTx(it.n)?`<span class="g" style="display:block;font-weight:500">${esc(lastTx(it.n))}</span>`:''}</span>
       <a href="https://www.youtube.com/results?search_query=${encodeURIComponent(it.n+' exercise how to')}" target="_blank" rel="noopener" title="Se hvordan">Vis</a>
       <button class="icon" data-a="swap" data-n="${i}" aria-label="Bytt øvelse">↻</button><button class="icon" data-a="exdel" data-n="${i}" aria-label="Fjern øvelse">✕</button></div>`).join('')||'<p class="sub" style="padding:10px 0">Ingen øvelser. Legg til minst én.</p>'}</div>
     ${p.items.length<3||p.items.length>5?`<div class="banner" style="margin:10px 0 0" role="status">⚠ ${p.items.length<3?'Få øvelser':'Mange øvelser'}: du har ${p.items.length}. Anbefalt er 3–5 per økt.</div>`:''}
@@ -424,7 +430,8 @@ function vTimer(){
   <div class="clock" id="clock">${clockTx()}</div>
   <p class="muted" style="text-align:center;font-weight:650;margin-bottom:14px">Runder: <span id="rounds">${T.rounds}</span></p>
   <button class="btn" data-a="round">+ Runde ferdig</button>
-  <div class="card" style="margin-top:12px">${S.plan.items.map(it=>`<div class="ex"><span class="tag">${it.x?'Fokus':EX[it.g].n}</span><span class="nm">${esc(exName(it.g,it.n))}</span></div>`).join('')}</div>
+  <div class="card" style="margin-top:12px"><p class="sub" style="margin-bottom:4px">Valgfritt: skriv inn beste runde, så ser du den neste gang.</p>${S.plan.items.map(it=>{const n=it.n,l=T.log[n]||{},u=isTimed(n)?'sek':'reps';return `<div class="ex"><span class="nm"><span class="tag" style="display:block;width:auto">${it.x?'Fokus':EX[it.g].n}</span>${esc(exName(it.g,n))}${lastTx(n)?`<span class="g" style="display:block;font-weight:500">${esc(lastTx(n))}</span>`:''}</span>
+    <input class="mini" type="text" inputmode="numeric" data-i="exr" data-x="${esc(n)}" placeholder="${u}" aria-label="${esc(n)}, ${u}" value="${esc(l.r??'')}">${hasLoad(n)?`<input class="mini" type="text" inputmode="decimal" data-i="exkg" data-x="${esc(n)}" placeholder="kg" aria-label="${esc(n)}, kg" value="${esc(l.kg??'')}">`:''}</div>`}).join('')}</div>
   <div class="row"><button class="btn sec" data-a="tpause">${T.run?'Pause':'Fortsett'}</button><button class="btn sec" data-a="tdone">Fullfør</button></div>
   <button class="link small" data-a="tcancel" style="display:block;margin:16px auto">Avbryt uten å logge</button>`;
 }
@@ -439,7 +446,8 @@ function beep(){try{const a=new(window.AudioContext||window.webkitAudioContext)(
 function finish(auto){
   const left=T.run?Math.max(0,(T.end-Date.now())/1000):T.left;
   const mins=Math.max(1,Math.round((T.mins*60-left)/60));
-  const d=day(today(),true);d.workout={mins,rounds:T.rounds,items:S.plan.items.map(i=>i.n)};d.done.move=true;save();
+  const log={};for(const it of S.plan.items){const l=T.log[it.n];if(!l)continue;const r=Math.round(num(l.r)),kg=r1(num(l.kg));if(r>0||kg>0){log[it.n]={r,kg};S.exlog[it.n]={r,kg,d:today()}}}
+  const d=day(today(),true);d.workout={mins,rounds:T.rounds,items:S.plan.items.map(i=>i.n),log};d.done.move=true;save();
   T.on=false;T.run=false;if(wake){wake.release().catch(()=>{});wake=null}
   if(auto)beep();
   tab='today';viewDate=today();render();toast(`Økt logget: ${mins} min 💪`);
@@ -525,14 +533,14 @@ function calcSheet(){
   <div class="g2"><div><label class="f">Kjønn</label><select data-p="sex"><option value="m" ${p.sex==='m'?'selected':''}>Mann</option><option value="f" ${p.sex==='f'?'selected':''}>Kvinne</option></select></div>
   <div><label class="f">Alder</label><input type="number" inputmode="numeric" data-p="age" value="${p.age}"></div>
   <div><label class="f">Høyde (cm)</label><input type="number" inputmode="numeric" data-p="height" value="${p.height}"></div>
-  <div><label class="f">Vekt nå (kg)</label><input type="number" inputmode="decimal" data-p="weight" value="${p.weight}"></div>
-  <div><label class="f">Målvekt (kg)</label><input type="number" inputmode="decimal" data-p="target" value="${p.target}"></div>
+  <div><label class="f">Vekt nå (kg)</label><input type="text" inputmode="decimal" data-p="weight" value="${dec(p.weight)}"></div>
+  <div><label class="f">Målvekt (kg)</label><input type="text" inputmode="decimal" data-p="target" value="${dec(p.target)}"></div>
   <div><label class="f">Mål</label><select data-p="goal"><option value="cut" ${p.goal==='cut'?'selected':''}>Ned i fett</option><option value="keep" ${p.goal==='keep'?'selected':''}>Holde</option><option value="bulk" ${p.goal==='bulk'?'selected':''}>Bygge</option></select></div></div>
   <label class="f">Aktivitet</label><select data-p="act">${[[1.2,'Stillesittende'],[1.375,'Lett aktiv (1–3 økter/uke)'],[1.55,'Aktiv (3–5 økter/uke)'],[1.725,'Veldig aktiv']].map(([v,l])=>`<option value="${v}" ${p.act==v?'selected':''}>${l}</option>`).join('')}</select>
   <div class="banner ok" id="calcres" style="margin-top:14px"></div>
   <button class="btn sec" data-a="calcuse">Bruk forslaget</button>
   <h3 style="margin-top:20px">Mine daglige mål</h3>
-  <div class="g2"><div><label class="f">Protein (g)</label><input type="number" inputmode="numeric" id="t-protein" value="${t.protein}"></div><div><label class="f">Vann (L)</label><input type="number" inputmode="decimal" step="0.1" id="t-water" value="${t.water}"></div>
+  <div class="g2"><div><label class="f">Protein (g)</label><input type="number" inputmode="numeric" id="t-protein" value="${t.protein}"></div><div><label class="f">Vann (L)</label><input type="text" inputmode="decimal" step="0.1" id="t-water" value="${dec(t.water)}"></div>
   <div><label class="f">Kcal fra</label><input type="number" inputmode="numeric" id="t-kmin" value="${t.kcalMin}"></div><div><label class="f">Kcal til</label><input type="number" inputmode="numeric" id="t-kmax" value="${t.kcalMax}"></div></div>
   <button class="btn" data-a="calcsave" style="margin-top:16px">Lagre</button>
   <p class="small muted" style="margin-top:10px">Forslaget er et estimat: vedlikehold ± et lite over-/underskudd, og ca. 2,2 g protein per kg målvekt. Juster etter noen uker.</p>`);
@@ -633,21 +641,22 @@ function vProg(){
   <div class="card"><h3>Vekt</h3><p class="sub">Logg gjerne hver dag, på «I dag» eller her. Ukesnittet viser retningen.</p>
     ${spark}
     ${ws.length?`<p class="sub">Sist: <b>${nf(ws[ws.length-1].kg)} kg</b>${ws.length>1?` · ${dlt>0?'+':''}${nf(dlt)} kg siden start`:''}</p>`:''}
-    <div class="row" style="margin-top:8px"><input type="number" inputmode="decimal" step="0.1" id="wkg" placeholder="kg"><button class="btn" data-a="weigh" style="flex:0 0 110px">Logg</button></div>
+    <div class="row" style="margin-top:8px"><input type="text" inputmode="decimal" step="0.1" id="wkg" placeholder="kg"><button class="btn" data-a="weigh" style="flex:0 0 110px">Logg</button></div>
     ${ws.length?'<button class="btn sec" data-a="wtrend" style="margin-top:10px">Se utvikling per uke</button>':''}
     <p class="small muted" style="margin-top:8px">Vekta er ett datapunkt. Se også på bilder, styrke og hvordan klærne sitter.</p></div>
   <div class="card"><h3>Bilder</h3><p class="sub">Foran, side, bak. Samme lys, samme klær, samme positur. Bildene lagres bare på denne enheten.</p>
     ${picDays().map(d=>`<label class="f">Dag ${d}${n>=d&&!POSES.some(([p])=>S.pics[pkey(d,p)])?' <span class="eyebrow">· ta nå</span>':''}</label><div class="pics">${POSES.map(([p,l])=>{const k=pkey(d,p);return S.pics[k]?`<button class="pic has" data-a="picview" data-k="${k}" aria-label="Dag ${d}, ${l}"><img data-pic="${k}" alt=""><span>${l}</span></button>`:`<label class="pic"><input type="file" accept="image/*" data-i="picadd" data-k="${k}" hidden><span>+ ${l}</span></label>`}).join('')}</div>`).join('')}
     ${picDays().filter(d=>POSES.some(([p])=>S.pics[pkey(d,p)])).length>1?'<button class="btn sec" data-a="cmp" style="margin-top:12px">Sammenlign første og siste</button>':''}</div>
   <div class="card"><details><summary>Startmål (valgfritt)</summary><div class="g2">
-    ${[['chest','Bryst'],['waist','Midje'],['hips','Hofter'],['arms','Armer'],['thighs','Lår']].map(([k,l])=>`<div><label class="f">${l} (cm)</label><input type="number" inputmode="decimal" data-i="base" data-k="${k}" value="${b[k]??''}"></div>`).join('')}</div></details></div>
+    ${[['chest','Bryst'],['waist','Midje'],['hips','Hofter'],['arms','Armer'],['thighs','Lår']].map(([k,l])=>`<div><label class="f">${l} (cm)</label><input type="text" inputmode="decimal" data-i="base" data-k="${k}" value="${dec(b[k])}"></div>`).join('')}</div></details></div>
   <div class="card"><details><summary>Innstillinger</summary>
     <label class="f">Navn</label><input type="text" data-i="name" value="${esc(S.name)}">
     <label class="f">Startdato (dag 1)</label><input type="date" data-i="start" value="${S.start}">
     <div class="row" style="margin-top:14px"><button class="btn sec" data-a="export">Sikkerhetskopi</button><label class="btn sec" for="impfile" style="cursor:pointer">Gjenopprett</label><input type="file" id="impfile" accept="application/json,.json" hidden></div>
     <button class="btn warn" data-a="reset" style="margin-top:10px">Slett alt og start på nytt</button>
     <label class="f" style="margin-top:16px">Konto og synk</label>
-    ${sess?`<p class="small">Innlogget som ${esc(sess.user.email||'')}</p>`:''}
+    ${sess?`<p class="small">Innlogget som ${esc(sess.user.email||'')}${(sess.user.app_metadata?.providers||[]).includes('google')?' · Google er koblet til':''}</p>`:''}
+    ${sess&&hasGoogle&&!(sess.user.app_metadata?.providers||[]).includes('google')?'<button class="btn sec" data-a="linkgoogle" style="margin:8px 0">Koble Google-kontoen til denne kontoen</button>':''}
     <p class="small muted" id="syncst">${esc(syncText())}</p>
     ${sb?(sess?'<div class="row" style="margin-top:8px"><button class="btn sec" data-a="syncnow">Synk nå</button><button class="btn sec" data-a="signout">Logg ut</button></div>':'<button class="btn" data-a="login" style="margin-top:8px">Logg inn</button>'):''}
   </details></div>
@@ -719,7 +728,7 @@ const A={
   gear(d){if(d.k==='none')GEAR.forEach(([k])=>S.gear[k]=false);else S.gear[d.k]=!S.gear[d.k];makePlan(S.plan.focus);render(1)},
   lvl(d){S.levels[d.g]=+d.v;makePlan(S.plan.focus);render(1)},
   mins(d){T.mins=+d.v;render(1)},
-  async tstart(){if(!S.plan.items.length)return;T.left=T.mins*60;T.end=Date.now()+T.left*1e3;T.run=true;T.on=true;T.rounds=0;render();try{wake=await navigator.wakeLock?.request('screen')}catch(e){}},
+  async tstart(){if(!S.plan.items.length)return;T.left=T.mins*60;T.end=Date.now()+T.left*1e3;T.run=true;T.on=true;T.rounds=0;T.log={};render();try{wake=await navigator.wakeLock?.request('screen')}catch(e){}},
   tpause(){if(T.run){T.left=Math.max(0,(T.end-Date.now())/1e3);T.run=false}else{T.end=Date.now()+T.left*1e3;T.run=true}render(1)},
   round(){T.rounds++;$('#rounds').textContent=T.rounds},
   tdone(){finish(false)},
@@ -771,6 +780,7 @@ const A={
     const{data,error}=await sb.auth.signUp({email:e,password:p,options:{emailRedirectTo:location.origin+location.pathname}});if(error)return m.textContent=authErr(error);
     if(data?.session){closeSheet();toast('Konto opprettet')}else m.textContent='Sjekk e-posten og bekreft kontoen. Logg så inn her.'},
   async google(){const m=$('#lg-m');m.textContent='Åpner Google …';const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)m.textContent=authErr(error)},
+  async linkgoogle(){toast('Åpner Google …');const{error}=await sb.auth.linkIdentity({provider:'google',options:{redirectTo:location.origin+location.pathname}});if(error)toast(/manual linking/i.test(error.message||'')?'Kobling av kontoer er ikke slått på i Supabase.':authErr(error))},
   async signout(){try{await sb.auth.signOut()}catch(e){}toast('Logget ut. Dataene ligger fortsatt på denne enheten.')},
   syncnow(){syncNow(true)},
 };
@@ -783,7 +793,9 @@ const I={
   grat(el){const x=day(viewDate,true);x.grat[+el.dataset.n]=el.value;x.done.grat=x.grat.every(g=>g.trim());save();syncToday()},
   snk(el){snack.k=el.value;syncSnack()},snp(el){snack.p=el.value;syncSnack()},snt(el){snack.t=el.checked;syncSnack()},
   rest(el){rest=el.value},
-  wday(el,ev){if(ev==='change'){setW(viewDate,num(el.value));save()}},
+  exr(el){(T.log[el.dataset.x]=T.log[el.dataset.x]||{}).r=el.value},
+  exkg(el){(T.log[el.dataset.x]=T.log[el.dataset.x]||{}).kg=el.value},
+  wday(el,ev){if(ev==='change'){setW(viewDate,num(el.value));save();el.value=dec(wOf(viewDate))}},
   picadd(el,ev){if(ev==='change'&&el.files[0])picAdd(el.dataset.k,el.files[0])},
   mealsel(el,ev){if(ev==='change'){meal[el.dataset.k]=el.value;render(1)}},
   shop(el){S.grocery[el.dataset.k]=el.checked;save()},

@@ -102,7 +102,11 @@ details[open] summary::after{content:"－"}
 .ex select{flex:1;min-width:0;min-height:40px;padding:8px 34px 8px 10px;font-weight:650}
 .ex .g{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap}
 .ex a{color:var(--muted);font-size:13px;text-decoration:none;padding:6px}
-.ex .mini{width:62px;flex:none;padding:8px 6px;text-align:center;min-height:42px}
+.ex .mini{width:56px;flex:none;padding:8px 4px;text-align:center;min-height:42px}
+.unit{font-size:12px;font-weight:650;color:var(--muted);flex:none;min-width:26px}
+.meter{display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-top:6px}
+button.frow{width:100%;text-align:left}
+button.icon:disabled{opacity:.35}
 .ex .icon{width:34px;height:34px;font-size:14px}
 .ex{gap:8px}
 .icon{width:38px;height:38px;border-radius:50%;background:var(--bg);border:1px solid var(--line);display:grid;place-items:center;flex:none;font-size:16px}
@@ -178,7 +182,7 @@ const DEF={onboarded:false,name:'',start:today(),
   targets:{protein:150,kcalMin:1900,kcalMax:2200,water:3.8},
   profile:{sex:'m',age:35,height:180,weight:80,target:80,act:1.375,goal:'cut'},
   days:{},levels:{arms:1,legs:1,abs:1,back:1},gear:{bar:false,kb:false,band:false,vest:false},act:'',plan:null,
-  weights:[],baseline:{},photos:{},grocery:{},exlog:{},pics:{},gone:{},epoch:0,hideInstall:false,
+  weights:[],baseline:{},photos:{},grocery:{},exlog:{},favs:[],pics:{},gone:{},epoch:0,hideInstall:false,
   goals:{w1:'',w2:'',wisdom:'',stature:'',faith:'',people:'',heard:{},memo:false}};
 const norm=s=>({...structuredClone(DEF),...s,targets:{...DEF.targets,...s.targets},profile:{...DEF.profile,...s.profile},goals:{...DEF.goals,...s.goals},levels:{...DEF.levels,...s.levels},gear:{...DEF.gear,...s.gear},act:s.act||(s.onboarded?'Basketøkt':'Treningstime')});
 let S=load();
@@ -243,7 +247,7 @@ function sbStart(){
   const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
   sc.onload=()=>{try{sb=window.supabase.createClient(SB_URL,SB_KEY);
     sb.auth.onAuthStateChange((ev,s)=>{const was=sess?.user?.id;sess=s;
-      if(s&&s.user.id!==was)setTimeout(()=>{if(!S.onboarded&&ob===2)ob=3;closeSheet();render(1);syncNow()},0);
+      if(s&&s.user.id!==was)setTimeout(()=>{aiChecked=false;if(!S.onboarded&&ob===2)ob=3;closeSheet();render(1);syncNow()},0);
       if(!s&&was)setTimeout(()=>render(1),0)});
     render(1);
     fetch(SB_URL+'/auth/v1/settings',{headers:{apikey:SB_KEY}}).then(r=>r.json()).then(d=>{const was=hasGoogle;hasGoogle=!!d?.external?.google;if(hasGoogle!==was&&!typing()&&$('#sheet').hidden)render(1)}).catch(()=>{})}catch(e){sb=null}};
@@ -258,6 +262,10 @@ const dayNo=k=>diff(k,S.start)+1;
 function streak(){let k=today(),n=0;if(!score(k))k=addDays(k,-1);while(score(k)&&diff(k,S.start)>=0){n++;k=addDays(k,-1)}return n}
 
 const krange=d=>d.kr||[S.targets.kcalMin,S.targets.kcalMax];
+// A day's protein/kcal = what was entered directly on «I dag» (xp/xk) + the food log.
+const fsum=(d,f)=>(d.food||[]).reduce((a,x)=>a+(+x[f]||0),0);
+function fbase(d){d.food=d.food||[];if(d.xp==null){d.xp=Math.max(0,(d.protein||0)-fsum(d,'p'));d.xk=Math.max(0,(d.kcal||0)-fsum(d,'kcal'))}}
+function recalc(d){d.protein=Math.round(d.xp+fsum(d,'p'));d.kcal=Math.round(d.xk+fsum(d,'kcal'));d.done.protein=d.protein>=S.targets.protein;d.done.kcal=d.kcal>=krange(d)[0]&&d.kcal<=krange(d)[1]}
 
 const wOf=k=>S.weights.find(w=>w.d===k)?.kg;
 const dec=v=>v==null||v===''?'':String(v).replace('.',',');
@@ -310,7 +318,7 @@ function vToday(){
   <article class="card habit" id="h-protein">
     <button class="chk" data-a="toggle" data-h="protein" aria-label="Protein">${CHECK}</button>
     <div class="hb"><h3>Protein</h3><p class="sub" id="s-protein"></p><div class="bar"><i id="b-protein"></i></div>
-      <div class="chips">${[10,25,50].map(v=>`<button class="chip" data-a="add" data-f="protein" data-v="${v}">+${v} g</button>`).join('')}<button class="chip ghost" data-a="add" data-f="protein" data-v="-10">−10</button></div></div>
+      <div class="chips">${[10,25,50].map(v=>`<button class="chip" data-a="add" data-f="protein" data-v="${v}">+${v} g</button>`).join('')}<button class="chip ghost" data-a="add" data-f="protein" data-v="-10">−10</button><button class="chip" data-a="tab" data-t="food">Logg mat</button></div></div>
   </article>
   <article class="card habit" id="h-kcal">
     <button class="chk" data-a="toggle" data-h="kcal" aria-label="Kalorier">${CHECK}</button>
@@ -373,7 +381,9 @@ const EXTAG={};for(const g in EX)for(const l of EX[g].p)for(const e of l)EXTAG[e
 const fits=n=>n in EXTAG&&canDo(EXTAG[n]);
 const isTimed=n=>/plank|hold|sek/i.test(n);
 const hasLoad=n=>/kb|vest/.test((EXTAG[n]||'').split('|')[1]||'')||/backpack|weighted|goblet/i.test(n);
-const lastTx=n=>{const l=S.exlog[n];return l?`Sist: ${l.r?l.r+(isTimed(n)?' sek':' reps'):''}${l.r&&l.kg?' · ':''}${l.kg?dec(l.kg)+' kg':''}`:''};
+const unitOf=n=>isTimed(n)?'sek':'reps';
+const sumTx=(n,rs)=>rs.length?`${rs.join(' + ')}${rs.length>1?' = '+rs.reduce((a,b)=>a+b,0):''} ${unitOf(n)}`:'';
+const lastTx=n=>{const l=S.exlog[n];if(!l)return'';const a=l.rounds?.length?sumTx(n,l.rounds):l.r?l.r+' '+unitOf(n):'';return a||l.kg?`Sist: ${a}${a&&l.kg?' · ':''}${l.kg?dec(l.kg)+' kg':''}`:''};
 const GROUPS=['arms','legs','abs','back'];
 const LVL=['Nybegynner','Middels','Avansert','Pro'];
 const WEEK=[null,'arms','legs',null,'abs','back','arms']; // søn..lør
@@ -431,8 +441,8 @@ function vTimer(){
   <div class="clock" id="clock">${clockTx()}</div>
   <p class="muted" style="text-align:center;font-weight:650;margin-bottom:14px">Runder: <span id="rounds">${T.rounds}</span></p>
   <button class="btn" data-a="round">+ Runde ferdig</button>
-  <div class="card" style="margin-top:12px"><p class="sub" style="margin-bottom:4px">Valgfritt: skriv inn beste runde, så ser du den neste gang.</p>${S.plan.items.map(it=>{const n=it.n,l=T.log[n]||{},u=isTimed(n)?'sek':'reps';return `<div class="ex"><span class="nm"><span class="tag" style="display:block;width:auto">${it.x?'Fokus':EX[it.g].n}</span>${esc(exName(it.g,n))}${lastTx(n)?`<span class="g" style="display:block;font-weight:500">${esc(lastTx(n))}</span>`:''}</span>
-    <input class="mini" type="text" inputmode="numeric" data-i="exr" data-x="${esc(n)}" placeholder="${u}" aria-label="${esc(n)}, ${u}" value="${esc(l.r??'')}">${hasLoad(n)?`<input class="mini" type="text" inputmode="decimal" data-i="exkg" data-x="${esc(n)}" placeholder="kg" aria-label="${esc(n)}, kg" value="${esc(l.kg??'')}">`:''}</div>`}).join('')}</div>
+  <div class="card" style="margin-top:12px"><p class="sub" style="margin-bottom:4px">Skriv inn hva du klarte denne runden, og trykk «Runde ferdig». Øvelser merket <b>sek</b> logges i sekunder.</p>${S.plan.items.map(it=>{const n=it.n,l=T.log[n]||{},u=unitOf(n);return `<div class="ex"><span class="nm"><span class="tag" style="display:block;width:auto">${it.x?'Fokus':EX[it.g].n}</span>${esc(exName(it.g,n))}${l.rounds?.length?`<span class="g" style="display:block;color:var(--accent);font-weight:650">${esc(sumTx(n,l.rounds))}</span>`:''}${lastTx(n)?`<span class="g" style="display:block;font-weight:500">${esc(lastTx(n))}</span>`:''}</span>
+    <input class="mini" type="text" inputmode="numeric" data-i="exr" data-x="${esc(n)}" placeholder="0" aria-label="${esc(n)}, ${u} denne runden" value="${esc(l.cur??'')}"><span class="unit">${u}</span>${hasLoad(n)?`<input class="mini" type="text" inputmode="decimal" data-i="exkg" data-x="${esc(n)}" placeholder="kg" aria-label="${esc(n)}, kg" value="${esc(l.kg??'')}">`:''}</div>`}).join('')}</div>
   <div class="row"><button class="btn sec" data-a="tpause">${T.run?'Pause':'Fortsett'}</button><button class="btn sec" data-a="tdone">Fullfør</button></div>
   <button class="link small" data-a="tcancel" style="display:block;margin:16px auto">Avbryt uten å logge</button>`;
 }
@@ -444,10 +454,12 @@ function tick(){
 }
 setInterval(tick,250);
 function beep(){try{const a=new(window.AudioContext||window.webkitAudioContext)();[0,.25,.5].forEach(t=>{const o=a.createOscillator(),g=a.createGain();o.frequency.value=880;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(.2,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+t+.2);o.start(a.currentTime+t);o.stop(a.currentTime+t+.2)})}catch(e){}}
+// move what is typed for the current round into each movement's list of rounds
+function flushRound(){let any=false;for(const it of S.plan.items){const l=T.log[it.n];if(!l)continue;const v=Math.round(num(l.cur));if(v>0){(l.rounds=l.rounds||[]).push(v);any=true}l.cur=''}return any}
 function finish(auto){
   const left=T.run?Math.max(0,(T.end-Date.now())/1000):T.left;
   const mins=Math.max(1,Math.round((T.mins*60-left)/60));
-  const log={};for(const it of S.plan.items){const l=T.log[it.n];if(!l)continue;const r=Math.round(num(l.r)),kg=r1(num(l.kg));if(r>0||kg>0){log[it.n]={r,kg};S.exlog[it.n]={r,kg,d:today()}}}
+  flushRound();const log={};for(const it of S.plan.items){const l=T.log[it.n];if(!l)continue;const rounds=l.rounds||[],r=rounds.reduce((a,b)=>a+b,0),kg=r1(num(l.kg));if(r>0||kg>0){log[it.n]={r,rounds,kg};S.exlog[it.n]={r,rounds,kg,d:today()}}}
   const d=day(today(),true);d.workout={mins,rounds:T.rounds,items:S.plan.items.map(i=>i.n),log};d.done.move=true;save();
   T.on=false;T.run=false;if(wake){wake.release().catch(()=>{});wake=null}
   if(auto)beep();
@@ -469,8 +481,9 @@ function portions(){
     pg=cl(r10((pr-V[2]*vg/100-C[2]*cg/100)/P[2]*100),80,P[3]||300);
     cg=cl(r10((kc-P[1]*pg/100-V[1]*vg/100)/C[1]*100),C[4]||50,C[3]||350)}
   const g={p:pg,c:cg,v:vg},row=(f,x)=>[Math.round(f[1]*x/100),Math.round(f[2]*x/100)];
-  const rs=[row(P,pg),row(C,cg),row(V,vg)];
-  return{g,kcal:rs.reduce((a,r)=>a+r[0],0),protein:rs.reduce((a,r)=>a+r[1],0),kc,pr};
+  for(const k of['p','c','v'])if(meal.g[k]!=null)g[k]=meal.g[k]; // the user's own amounts win over the suggestion
+  const rs=[row(P,g.p),row(C,g.c),row(V,g.v)];
+  return{g,rs,names:[P[0],C[0],V[0]],kcal:rs.reduce((a,r)=>a+r[0],0),protein:rs.reduce((a,r)=>a+r[1],0),kc,pr};
 }
 const SHOP={
   'Protein':['Kyllingfilet','Biff / høyrygg','Karbonadedeig','Kalkunkjøttdeig','Laks','Reker','Tunfisk på boks','Egg','Eggehvite','Mager gresk yoghurt / skyr','Cottage cheese','Proteindrikk','Proteinpulver'],
@@ -479,11 +492,76 @@ const SHOP={
   'Frukt':['Frosne bær','Jordbær','Blåbær','Bringebær','Banan','Eple','Druer','Ananas'],
   'Sunt fett':['Avokado','Olivenolje','Smør','Peanøttsmør','Mandler / cashew','Chiafrø'],
   'Smak':['Salsa','Sennep','Hot sauce','Honning','Salt og pepper','Hvitløkspulver','Krydderblanding']};
-let meal={p:MEAL.p[0][0],c:MEAL.c[0][0],v:MEAL.v[0][0]},snack={k:'',p:'',t:false},rest='';
+let meal={p:MEAL.p[0][0],c:MEAL.c[0][0],v:MEAL.v[0][0],g:{}},snack={k:'',p:'',t:false},rest='';
+/* ---------- food log ---------- */
+let kd=null,est=null,favOpen=false,aiBusy=false,aiOK=false,aiChecked=false,feBase=null,freq=[];
+const ku={text:'',k:'',p:''};
+const fid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const isFav=n=>S.favs.some(x=>x.n.trim().toLowerCase()===String(n||'').trim().toLowerCase());
+function frequentFoods(){
+  const from=addDays(today(),-60),m={};
+  for(const k in S.days){if(k<from)continue;for(const f of S.days[k].food||[]){const key=String(f.n||'').trim().toLowerCase();if(!key||key==='måltid'||isFav(key))continue;
+    const e=m[key]||(m[key]={n:f.n,kcal:f.kcal,p:f.p,g:f.g,c:0,t:-1});e.c++;if((f.t||0)>=e.t){e.t=f.t||0;e.n=f.n;e.kcal=f.kcal;e.p=f.p;e.g=f.g}}}
+  return Object.values(m).filter(e=>e.c>=2).sort((a,b)=>b.c-a.c).slice(0,8);
+}
+function favPanel(){
+  freq=frequentFoods();
+  const row=(f,act,extra='')=>`<div class="ex"><span class="nm">${esc(f.n)}<span class="g" style="display:block;font-weight:500">${f.kcal} kcal · ${f.p} g protein${extra}</span></span>${act}</div>`;
+  return `<div style="background:var(--bg);border-radius:12px;padding:6px 12px;margin-bottom:10px">
+    ${S.favs.map((f,i)=>row(f,`<button class="chip on" data-a="favadd" data-n="${i}">Legg til</button><button class="icon" data-a="favdel" data-n="${i}" aria-label="Fjern favoritt ${esc(f.n)}">✕</button>`)).join('')||'<p class="sub" style="padding:8px 0">Ingen favoritter ennå. Trykk på noe du har logget og velg ★ Favoritt.</p>'}
+    ${freq.length?`<label class="f">Ofte logget</label>${freq.map((f,i)=>row(f,`<button class="icon" data-a="freqfav" data-n="${i}" aria-label="Lagre ${esc(f.n)} som favoritt">★</button><button class="chip on" data-a="freqadd" data-n="${i}">Legg til</button>`,` · ${f.c} ganger`)).join('')}`:''}</div>`;
+}
+function vKost(){
+  const k=kd||today(),d=day(k),t=S.targets,kr=krange(d),kc=d.kcal||0,pr=d.protein||0,list=d.food||[];
+  const last=[...Array(7)].map((_,i)=>S.days[addDays(k,-i)]).filter(x=>x&&(x.food||[]).length);
+  const av=f=>last.length?Math.round(last.reduce((a,x)=>a+(x[f]||0),0)/last.length):null;
+  aiStatus();
+  return `
+  <div class="row" style="align-items:center;margin-bottom:10px"><button class="icon" data-a="kday" data-n="-1" aria-label="Forrige dag" style="flex:none">‹</button><b style="text-align:center">${k===today()?'I dag':esc(fmtDate(k))}</b><button class="icon" data-a="kday" data-n="1" aria-label="Neste dag" style="flex:none" ${k>=today()?'disabled':''}>›</button></div>
+  <div class="card">
+    <div class="meter" style="margin-top:0"><span>Kalorier</span><span><b>${kc}</b> / ${kr[0]}–${kr[1]} kcal</span></div><div class="bar"><i style="width:${Math.min(100,kc/kr[1]*100)}%${kc>kr[1]?';background:var(--warn)':''}"></i></div>
+    <div class="meter"><span>Protein</span><span><b>${pr}</b> / ${t.protein} g</span></div><div class="bar" style="margin-bottom:0"><i style="width:${Math.min(100,pr/t.protein*100)}%"></i></div>
+    ${list.length&&((d.xp||0)>0||(d.xk||0)>0)?`<p class="small muted" style="margin-top:8px">Inkluderer ${d.xp||0} g protein og ${d.xk||0} kcal ført direkte på «I dag».</p>`:''}
+  </div>
+  <div class="card">
+    <h3>Legg til</h3>
+    <button class="btn sec" data-a="favopen" style="margin:10px 0" aria-expanded="${favOpen}">${favOpen?'Skjul favoritter':`Velg fra favoritter (${S.favs.length})`}</button>
+    ${favOpen?favPanel():''}
+    <label class="f" for="f-n" style="margin-top:0">Hva spiste du?</label><textarea id="f-n" data-i="ftext" rows="2" style="min-height:64px" placeholder="F.eks. to rundstykker, to egg, to skiver skinke og litt smør">${esc(ku.text)}</textarea>
+    ${aiOK&&sess?`<div class="row" style="margin-top:8px"><button class="btn sec" data-a="foodai" ${aiBusy?'disabled':''}>${aiBusy?'Tenker …':'Anslå med AI'}</button><label class="btn sec" style="cursor:pointer${aiBusy?';opacity:.5;pointer-events:none':''}">Legg til bilde<input type="file" accept="image/*" data-i="foodimg" hidden></label></div>
+    <p class="small muted" style="margin-top:6px">Bildet kan være måltidet, produktet eller et bilde av næringsinnholdet. Skriv gjerne mengden over først.</p>`:`<p class="small muted" style="margin-top:6px">${sb&&!sess?'Logg inn for å kunne anslå kalorier og protein med AI.':'Fyll inn kalorier og protein selv.'}</p>`}
+    <div class="g2"><div><label class="f" for="f-k">Kcal</label><input type="text" inputmode="numeric" id="f-k" data-i="fk" value="${esc(ku.k)}"></div><div><label class="f" for="f-p">Protein (g)</label><input type="text" inputmode="numeric" id="f-p" data-i="fp" value="${esc(ku.p)}"></div></div>
+    ${est?`<p class="small muted" style="margin-top:8px"><b>${esc(est.n)}</b> · AI-anslag (sikkerhet: ${esc(est.conf||'ukjent')})${est.basis?' · '+esc(est.basis):''}. Juster før du lagrer.</p>${est.items.length>1?est.items.map(x=>`<div class="ex" style="padding:6px 0"><span class="nm" style="font-weight:500;font-size:14px">${esc(x.n)}</span><span class="g">${x.kcal} kcal · ${x.p} g</span></div>`).join(''):''}`:''}
+    <button class="btn" data-a="foodadd" style="margin-top:12px">Legg til</button>
+  </div>
+  <div class="card"><h3>Logget</h3>
+    ${list.map((f,i)=>`<button class="ex frow" data-a="foodedit" data-n="${i}"><span class="nm">${esc(f.n||'Måltid')}${f.est?' <span class="g">(anslag)</span>':''}<span class="g" style="display:block;font-weight:500">${f.kcal} kcal · ${f.p} g protein${f.g?' · '+f.g+' g':''}</span></span><span class="g">${isFav(f.n)?'★ ':''}Endre ›</span></button>`).join('')||'<p class="sub" style="padding:8px 0 0">Ingenting logget ennå.</p>'}
+    ${last.length?`<p class="small muted" style="margin-top:10px">Snitt siste ${last.length} loggede dager: ${av('kcal')} kcal og ${av('protein')} g protein.</p>`:''}
+  </div>`;
+}
+const b64=blob=>new Promise((res,rej)=>{const f=new FileReader();f.onload=()=>res(String(f.result).split(',')[1]||'');f.onerror=rej;f.readAsDataURL(blob)});
+async function aiStatus(){if(!sb||!sess||aiChecked)return;aiChecked=true;
+  try{const{data}=await sb.functions.invoke('reps-food-ai',{body:{action:'status'}});aiOK=!!data?.configured;if(aiOK&&tab==='food'&&!typing()&&$('#sheet').hidden)render(1)}catch(e){aiChecked=false}}
+const AIERR={daily_limit:'Du har brukt opp dagens AI-anslag. Fyll inn selv, eller prøv igjen i morgen.',not_configured:'AI-anslag er ikke satt opp ennå.',bad_api_key:'AI-nøkkelen virker ikke. Den må settes på nytt i Supabase.',busy:'AI-tjenesten er opptatt. Prøv igjen om litt.',image_too_large:'Bildet er for stort. Prøv et annet bilde.',refused:'AI-en kunne ikke anslå dette. Fyll inn selv.',not_signed_in:'Logg inn for å bruke AI-anslag.'};
+async function foodAI(file){
+  const text=ku.text.trim();if(!file&&!text)return toast('Beskriv hva du spiste først.');
+  aiBusy=true;render(1);
+  try{const image=file?await b64(await shrink(file,1400)):'';
+    const{data,error}=await sb.functions.invoke('reps-food-ai',{body:{text,image}});
+    if(error){let code='';try{code=(await error.context.json()).error}catch(e){}throw new Error(code)}
+    const r=data.estimate||{};
+    est={n:String(r.n||'Måltid').slice(0,80),kcal:Math.round(+r.kcal||0),p:Math.round(+r.p||0),basis:String(r.basis||''),conf:String(r.conf||''),items:(r.items||[]).slice(0,12).map(x=>({n:String(x.n||''),kcal:Math.round(+x.kcal||0),p:Math.round(+x.p||0)}))};
+    ku.k=String(est.kcal);ku.p=String(est.p);
+  }catch(e){toast(AIERR[e.message]||'Kunne ikke anslå nå. Prøv igjen, eller fyll inn selv.')}
+  aiBusy=false;render(1);
+}
+function foodPush(k,f){const x=day(k,true);fbase(x);x.food.push({id:fid(),t:Date.now(),...f});recalc(x);save()}
+
 function vFood(){
   const t=S.targets,po=portions();
   return `
   <div class="eyebrow">Enkelt er bærekraftig</div><h2 style="margin-top:2px">Mat</h2>
+  ${vKost()}
   <div class="card">
     <h3>Mine tall</h3>
     <div class="stats" style="margin:10px 0"><div><b>${t.protein}</b><span>g protein</span></div><div><b style="font-size:19px;line-height:34px">${t.kcalMin}–${t.kcalMax}</b><span>kcal</span></div><div><b>${nf(t.water,1)}</b><span>liter vann</span></div></div>
@@ -491,11 +569,11 @@ function vFood(){
     <ul class="tips"><li><b>Protein først.</b> Bygg hvert måltid rundt proteinet – ca. ${Math.round(t.protein/3)} g per måltid på tre måltider.</li><li><b>Kalorier deretter.</b> Hold deg i spennet ditt.</li><li>Logg i en kalori-app noen uker til du kan maten din. Ikke for alltid.</li><li>Fiber metter: ca. 14 g per 1000 kcal.</li></ul>
   </div>
   <div class="card">
-    <h3>Bygg et måltid</h3><p class="sub">Velg selv fra listene, eller trykk ↻ for et nytt forslag. Mengdene er tilpasset målene dine.</p>
-    ${[['p','Protein'],['c','Karbo'],['v','Grønt/frukt']].map(([k,l])=>`<label class="f" for="meal-${k}">${l}</label><div class="ex" style="padding:0 0 4px;border:0"><select id="meal-${k}" data-i="mealsel" data-k="${k}">${MEAL[k].map(f=>`<option ${f[0]===meal[k]?'selected':''}>${f[0]}</option>`).join('')}</select><span class="g">ca. ${po.g[k]} g</span><button class="icon" data-a="meal" data-k="${k}" aria-label="Nytt forslag til ${l}">↻</button></div>`).join('')}
+    <h3>Bygg et måltid</h3><p class="sub">Velg selv fra listene, eller trykk ↻ for et nytt forslag. Mengdene er et forslag ut fra målene dine, og du kan endre dem.</p>
+    ${[['p','Protein'],['c','Karbo'],['v','Grønt/frukt']].map(([k,l])=>`<label class="f" for="meal-${k}">${l}</label><div class="ex" style="padding:0 0 4px;border:0"><select id="meal-${k}" data-i="mealsel" data-k="${k}">${MEAL[k].map(f=>`<option ${f[0]===meal[k]?'selected':''}>${f[0]}</option>`).join('')}</select><input class="mini" type="text" inputmode="numeric" data-i="mealg" data-k="${k}" value="${po.g[k]}" aria-label="${l}, gram"><span class="unit">g</span><button class="icon" data-a="meal" data-k="${k}" aria-label="Nytt forslag til ${l}">↻</button></div>`).join('')}
     <div class="banner ok" style="margin:12px 0 10px">Dette måltidet: ca. ${po.kcal} kcal · ${po.protein} g protein</div>
-    <div class="row"><button class="btn sec" data-a="meal" data-k="all">↻ Nytt forslag</button><button class="btn" data-a="mealadd">Legg til i dag</button></div>
-    <p class="small muted" style="margin-top:10px">Sikter mot ca. ${po.kc} kcal og ${po.pr} g protein per måltid (tre måltider, med rom for snacks). Vekt er ferdig tilberedt, og tallene er omtrentlige.</p>
+    <div class="row"><button class="btn sec" data-a="meal" data-k="all">↻ Nytt forslag</button><button class="btn" data-a="mealadd">Legg i matloggen</button></div>
+    <p class="small muted" style="margin-top:10px">Forslaget sikter mot ca. ${po.kc} kcal og ${po.pr} g protein per måltid. Vekt er ferdig tilberedt, og tallene er omtrentlige.</p>
   </div>
   <div class="card">
     <h3>Snack-sjekken</h3><p class="sub">Må treffe minst 2 av 3 – ellers blir den i hylla.</p>
@@ -616,7 +694,7 @@ const pkey=(d,p)=>`ph:${S.start}:${d}:${p}`;
 const picUrl={};
 async function picSrc(k){if(!picUrl[k]){const b=await idbGet(k);if(b)picUrl[k]=URL.createObjectURL(b)}return picUrl[k]||''}
 function loadPics(root=document){root.querySelectorAll('img[data-pic]').forEach(async im=>{try{im.src=await picSrc(im.dataset.pic)}catch(e){}})}
-async function shrink(file){try{const bmp=await createImageBitmap(file,{imageOrientation:'from-image'}),sc=Math.min(1,1600/Math.max(bmp.width,bmp.height)),c=document.createElement('canvas');
+async function shrink(file,max=1600){try{const bmp=await createImageBitmap(file,{imageOrientation:'from-image'}),sc=Math.min(1,max/Math.max(bmp.width,bmp.height)),c=document.createElement('canvas');
   c.width=Math.round(bmp.width*sc);c.height=Math.round(bmp.height*sc);c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
   return await new Promise(r=>c.toBlob(b=>r(b||file),'image/jpeg',.85))}catch(e){return file}}
 async function picAdd(k,file){try{const b=await shrink(file);await idbSet(k,b);if(picUrl[k]){URL.revokeObjectURL(picUrl[k]);delete picUrl[k]}S.pics[k]=Date.now();holdBlob(k,S.pics[k]);save();closeSheet();render(1);toast('Bilde lagret')}catch(e){toast('Kunne ikke lagre bildet')}}
@@ -788,7 +866,7 @@ const A={
   tab(d){tab=d.t;if(tab==='today')viewDate=today();render()},
   gotoday(){viewDate=today();render()},
   toggle(d){const x=day(viewDate,true);x.done[d.h]=!x.done[d.h];save();syncToday();if(score(viewDate)===5&&x.done[d.h])toast('Full seier! 🏆')},
-  add(d){const x=day(viewDate,true),f=d.f,was=score(viewDate);x[f]=Math.max(0,Math.round((x[f]+num(d.v))*100)/100);x.done[f]=x[f]>=S.targets[f];save();syncToday();if(score(viewDate)===5&&was<5)toast('Full seier! 🏆')},
+  add(d){const x=day(viewDate,true),f=d.f,was=score(viewDate);if(f==='protein'){fbase(x);x.xp=Math.max(0,x.xp+num(d.v));recalc(x)}else{x[f]=Math.max(0,Math.round((x[f]+num(d.v))*100)/100);x.done[f]=x[f]>=S.targets[f]}save();syncToday();if(score(viewDate)===5&&was<5)toast('Full seier! 🏆')},
   mv(d){const x=day(viewDate,true);x.moves=x.moves||{};x.moves[d.k]=!x.moves[d.k];x.done.move=!!(x.workout||x.moves.basket||x.moves.walk);save();syncToday();if(score(viewDate)===5&&x.done.move)toast('Full seier! 🏆')},
   min(){sheet(`<h2>Travel dag? Gjør minimum.</h2><p class="sub">Du trenger ikke perfekte forhold. Selv ett minutt teller.</p>
     <ul class="tips" style="font-size:16px;color:var(--ink)"><li>1 min planke, 10 push-ups eller en kort gåtur – bare gjør <b>noe</b></li><li>Juster maten så godt du kan</li><li>Skriv takknemligheten din</li></ul>
@@ -810,12 +888,43 @@ const A={
   mins(d){T.mins=+d.v;render(1)},
   async tstart(){if(!S.plan.items.length)return;T.left=T.mins*60;T.end=Date.now()+T.left*1e3;T.run=true;T.on=true;T.rounds=0;T.log={};render();try{wake=await navigator.wakeLock?.request('screen')}catch(e){}},
   tpause(){if(T.run){T.left=Math.max(0,(T.end-Date.now())/1e3);T.run=false}else{T.end=Date.now()+T.left*1e3;T.run=true}render(1)},
-  round(){T.rounds++;$('#rounds').textContent=T.rounds},
+  round(){flushRound();T.rounds++;render(1)},
   tdone(){finish(false)},
   tcancel(){ask('Avbryte økta uten å logge?','Avbryt økta',()=>{T.on=false;T.run=false;render()})},
-  meal(d){(d.k==='all'?['p','c','v']:[d.k]).forEach(k=>{meal[k]=pick(MEAL[k].filter(x=>x[0]!==meal[k]))[0]});render(1)},
-  mealadd(){const po=portions(),x=day(today(),true),t=S.targets;x.protein+=po.protein;x.kcal=(x.kcal||0)+po.kcal;x.done.protein=x.protein>=t.protein;x.done.kcal=x.kcal>=krange(x)[0]&&x.kcal<=krange(x)[1];save();toast(`Lagt til i dag: ${po.protein} g protein, ${po.kcal} kcal`)},
-  askcopy(){const r=rest.trim()||'[spisested]';copy(`Hva kan jeg bestille på ${r} for et måltid med mye protein og lite kalorier? Gi meg 3 alternativer med makrofordeling.`,'Spørsmål kopiert')},
+  meal(d){(d.k==='all'?['p','c','v']:[d.k]).forEach(k=>{meal[k]=pick(MEAL[k].filter(x=>x[0]!==meal[k]))[0];delete meal.g[k]});render(1)},
+  mealadd(){const po=portions(),k=kd||today(),x=day(k,true);fbase(x);
+    x.food.push({id:fid(),n:po.names.join(', '),kcal:po.kcal,p:po.protein,t:Date.now(),items:['p','c','v'].map((q,i)=>({n:`${po.names[i]} ${po.g[q]} g`,kcal:po.rs[i][0],p:po.rs[i][1]})).filter(it=>it.kcal>0)});
+    recalc(x);save();render(1);toast(`Lagt i matloggen: ${po.kcal} kcal, ${po.protein} g protein`)},
+  kday(d){const n=addDays(kd||today(),+d.n);kd=n>=today()?null:n;est=null;render(1)},
+  favopen(){favOpen=!favOpen;render(1)},
+  favadd(d){const f=S.favs[+d.n];if(!f)return;foodPush(kd||today(),{n:f.n,kcal:f.kcal,p:f.p,...(f.g?{g:f.g}:{})});render(1);toast(`${f.n} lagt til`)},
+  favdel(d){S.favs.splice(+d.n,1);save();render(1)},
+  freqadd(d){const f=freq[+d.n];if(!f)return;foodPush(kd||today(),{n:f.n,kcal:f.kcal,p:f.p,...(f.g?{g:f.g}:{})});render(1);toast(`${f.n} lagt til`)},
+  freqfav(d){const f=freq[+d.n];if(!f||isFav(f.n))return;S.favs.push({n:f.n,kcal:f.kcal,p:f.p,...(f.g?{g:f.g}:{})});save();render(1);toast('Lagret som favoritt')},
+  foodai(){foodAI(null)},
+  foodadd(){const txt=ku.text.trim(),kc=Math.round(num(ku.k)),p=Math.round(num(ku.p));
+    if(!txt&&!kc&&!p)return toast('Skriv hva du spiste, eller fyll inn kalorier og protein.');
+    foodPush(kd||today(),{n:(est?.n||txt||'Måltid').slice(0,80),kcal:kc,p,...(est?{est:1,items:est.items}:{})});est=null;ku.text=ku.k=ku.p='';render(1);toast('Lagt til')},
+  foodedit(d){const k=kd||today(),f=(day(k).food||[])[+d.n];if(!f)return;feBase={i:+d.n,kcal:f.kcal,p:f.p,g:f.g||0};
+    sheet(`<h2>Endre</h2>
+    <label class="f" for="fe-n">Navn</label><input type="text" id="fe-n" value="${esc(f.n)}" maxlength="80">
+    <label class="f">Mengde</label><div class="chips" style="margin-top:0">${[[.5,'½'],[.75,'¾'],[1,'Som logget'],[1.5,'1½'],[2,'Dobbel']].map(([v,l])=>`<button class="chip" data-a="fescale" data-v="${v}">${l}</button>`).join('')}</div>
+    ${f.g?`<label class="f" for="fe-g">Gram</label><input type="text" inputmode="numeric" id="fe-g" data-i="feg" value="${f.g}">`:''}
+    <div class="g2"><div><label class="f" for="fe-k">Kcal</label><input type="text" inputmode="numeric" id="fe-k" value="${f.kcal}"></div><div><label class="f" for="fe-p">Protein (g)</label><input type="text" inputmode="numeric" id="fe-p" value="${f.p}"></div></div>
+    ${(f.items||[]).length>1?`<label class="f">Består av</label>${f.items.map(x=>`<div class="ex" style="padding:6px 0"><span class="nm" style="font-weight:500;font-size:14px">${esc(x.n)}</span><span class="g">${x.kcal} kcal · ${x.p} g</span></div>`).join('')}`:''}
+    <button class="btn" data-a="fesave" style="margin-top:16px">Lagre</button>
+    <div class="row" style="margin-top:8px"><button class="btn sec" data-a="fefav">${isFav(f.n)?'★ Fjern favoritt':'★ Favoritt'}</button><button class="btn warn" data-a="fedel">Slett</button></div>
+    <button class="btn sec" data-a="close" style="margin-top:8px">Avbryt</button>`)},
+  fescale(d){const v=+d.v;$('#fe-k').value=Math.round(feBase.kcal*v);$('#fe-p').value=Math.round(feBase.p*v);const g=$('#fe-g');if(g&&feBase.g)g.value=Math.round(feBase.g*v)},
+  fesave(){const x=day(kd||today(),true),f=x.food?.[feBase.i];if(!f)return closeSheet();fbase(x);
+    f.n=$('#fe-n').value.trim().slice(0,80)||'Måltid';f.kcal=Math.max(0,Math.round(num($('#fe-k').value)));f.p=Math.max(0,Math.round(num($('#fe-p').value)));
+    const g=$('#fe-g');if(g){const v=Math.round(num(g.value));if(v>0)f.g=v}
+    if(f.kcal!==feBase.kcal||f.p!==feBase.p)delete f.items;
+    recalc(x);save();closeSheet();render(1);toast('Lagret')},
+  fefav(){const n=$('#fe-n').value.trim()||'Måltid',i=S.favs.findIndex(x=>x.n.trim().toLowerCase()===n.toLowerCase());
+    if(i>=0){S.favs.splice(i,1);toast('Fjernet fra favoritter')}else{const g=$('#fe-g');S.favs.push({n,kcal:Math.round(num($('#fe-k').value)),p:Math.round(num($('#fe-p').value)),...(g&&num(g.value)>0?{g:Math.round(num(g.value))}:{})});toast('Lagret som favoritt')}
+    save();A.fesave()},
+  fedel(){const x=day(kd||today(),true);fbase(x);x.food.splice(feBase.i,1);recalc(x);save();closeSheet();render(1);toast('Slettet')},
   shopclear(){S.grocery={};save();render(1)},
   calc:calcSheet,
   calcuse(){const c=calcNums(S.profile);$('#t-protein').value=c.protein;$('#t-kmin').value=c.kcalMin;$('#t-kmax').value=c.kcalMax;toast('Forslag fylt inn')},
@@ -873,17 +982,21 @@ document.addEventListener('click',e=>{
   const b=e.target.closest('[data-a]');if(b&&A[b.dataset.a])A[b.dataset.a](b.dataset);
 });
 const I={
-  kcal(el){const x=day(viewDate,true),v=Math.round(num(el.value));x.kcal=v;x.done.kcal=v>=krange(x)[0]&&v<=krange(x)[1];save();syncToday()},
+  kcal(el){const x=day(viewDate,true),v=Math.round(num(el.value));fbase(x);x.xk=Math.max(0,v-fsum(x,'kcal'));recalc(x);save();syncToday()},
   grat(el){const x=day(viewDate,true);x.grat[+el.dataset.n]=el.value;x.done.grat=x.grat.every(g=>g.trim());save();syncToday()},
   snk(el){snack.k=el.value;syncSnack()},snp(el){snack.p=el.value;syncSnack()},snt(el){snack.t=el.checked;syncSnack()},
   rest(el){rest=el.value},
   act(el,ev){const v=el.value.trim().slice(0,24);if(ev==='change'&&v){S.act=v;save();render(1)}},
   obwater(el){el.dataset.touched='1'},
-  exr(el){(T.log[el.dataset.x]=T.log[el.dataset.x]||{}).r=el.value},
+  exr(el){(T.log[el.dataset.x]=T.log[el.dataset.x]||{}).cur=el.value},
   exkg(el){(T.log[el.dataset.x]=T.log[el.dataset.x]||{}).kg=el.value},
   wday(el,ev){if(ev==='change'){setW(viewDate,num(el.value));save();el.value=dec(wOf(viewDate))}},
   picadd(el,ev){if(ev==='change'&&el.files[0])picAdd(el.dataset.k,el.files[0])},
-  mealsel(el,ev){if(ev==='change'){meal[el.dataset.k]=el.value;render(1)}},
+  mealsel(el,ev){if(ev==='change'){meal[el.dataset.k]=el.value;delete meal.g[el.dataset.k];render(1)}},
+  mealg(el,ev){if(ev==='change'){const v=Math.round(num(el.value));if(el.value.trim()===''||v<0)delete meal.g[el.dataset.k];else meal.g[el.dataset.k]=v;render(1)}},
+  ftext(el){ku.text=el.value},fk(el){ku.k=el.value},fp(el){ku.p=el.value},
+  foodimg(el,ev){if(ev==='change'&&el.files[0])foodAI(el.files[0])},
+  feg(el){const g=num(el.value);if(feBase&&feBase.g>0&&g>0){$('#fe-k').value=Math.round(feBase.kcal*g/feBase.g);$('#fe-p').value=Math.round(feBase.p*g/feBase.g)}},
   shop(el){S.grocery[el.dataset.k]=el.checked;save()},
   photo(el){S.photos[el.dataset.k]=el.checked;save()},
   base(el){S.baseline[el.dataset.k]=el.value;save()},
